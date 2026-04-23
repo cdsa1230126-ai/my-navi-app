@@ -19,9 +19,7 @@ function startApp(token) {
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
         center: [139.767, 35.681],
-        zoom: 14,
-        pitchWithRotate: false,
-        dragRotate: false
+        zoom: 14
     });
 
     const searchBox = document.getElementById('search-box');
@@ -42,47 +40,56 @@ function startApp(token) {
         }, null, { enableHighAccuracy: true });
     }
 
-    // ★多言語・表記ゆれ生成関数
-    function generateSearchQueries(input) {
-        const queries = [input];
-        // よくある有名施設の英語名を強制追加（Mapboxの多言語データ 対策）
-        if (input.includes("東京タワー")) queries.push("Tokyo Tower");
-        if (input.includes("スカイツリー")) queries.push("Skytree");
-        if (input.includes("駅")) queries.push(input.replace("駅", " Station"));
-        return [...new Set(queries)];
+    // ★今回の核心：入力された文字を多言語・多表記に広げる
+    function getSearchVariants(query) {
+        const variants = [query];
+        // 有名スポットの翻訳辞書（ここを強化するとさらに賢くなります）
+        const dictionary = {
+            "東京タワー": ["Tokyo Tower", "Minato Shibakoen"],
+            "スカイツリー": ["Tokyo Skytree"],
+            "富士山": ["Mt. Fuji"],
+            "浅草寺": ["Senso-ji Temple"]
+        };
+        if (dictionary[query]) variants.push(...dictionary[query]);
+        
+        // 簡易変換：駅名などの対応
+        if (query.endsWith("駅")) variants.push(query.replace("駅", " Station"));
+        return [...new Set(variants)];
     }
 
     searchBox.addEventListener('input', async (e) => {
         const query = e.target.value;
-        if (!query) { suggestionsContainer.classList.add('hidden'); return; }
+        if (!query || query.length < 2) { suggestionsContainer.classList.add('hidden'); return; }
 
-        const searchTerms = generateSearchQueries(query);
+        const variants = getSearchVariants(query);
         
-        // 全てのクエリで並列検索を実行
-        const promises = searchTerms.map(term => 
-            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(term)}.json?access_token=${token}&limit=5&country=jp&types=poi,landmark,address&fuzzyMatch=true&worldview=jp`)
-            .then(res => res.json())
+        // ★複数の言語・キーワードで一斉に検索
+        const fetchPromises = variants.map(v => 
+            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(v)}.json?access_token=${token}&limit=5&country=jp&types=poi,landmark,address&worldview=jp`)
+            .then(r => r.json())
         );
 
         try {
-            const results = await Promise.all(promises);
+            const results = await Promise.all(fetchPromises);
             let allFeatures = results.flatMap(data => data.features || []);
 
-            // 重複排除（同じ座標の地点をまとめる）
-            const seen = new Set();
+            // 重複排除（座標が同じものを消す）
+            const seenCoords = new Set();
             allFeatures = allFeatures.filter(f => {
                 const coord = f.geometry.coordinates.join(',');
-                return seen.has(coord) ? false : seen.add(coord);
+                if (seenCoords.has(coord)) return false;
+                seenCoords.add(coord);
+                return true;
             });
 
-            // ★優先度ソート（POI/建物を最優先にし、地名を下げる）
+            // POI（施設）を最優先にするソート
             allFeatures.sort((a, b) => {
-                const typePriority = { 'poi': 1, 'landmark': 2, 'address': 3 };
-                return (typePriority[a.place_type[0]] || 4) - (typePriority[b.place_type[0]] || 4);
+                const priority = { 'poi': 1, 'landmark': 2, 'address': 3 };
+                return (priority[a.place_type[0]] || 4) - (priority[b.place_type[0]] || 4);
             });
 
             renderSuggestions(allFeatures);
-        } catch (err) { console.error(err); }
+        } catch (err) { console.error("検索エラー:", err); }
     });
 
     function renderSuggestions(features) {
@@ -91,9 +98,9 @@ function startApp(token) {
             suggestionsContainer.classList.remove('hidden');
             features.forEach(f => {
                 const li = document.createElement('li');
-                const name = f.text_ja || f.text;
-                const address = f.place_name_ja || f.place_name;
-                li.innerHTML = `<strong>📍 ${name}</strong><br><small>${address}</small>`;
+                // 地図が英語でも日本語名があれば優先表示
+                const displayName = f.text_ja || f.text;
+                li.innerHTML = `<strong>📍 ${displayName}</strong><br><small>${f.place_name}</small>`;
                 li.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     handleSelection(f);
