@@ -18,7 +18,7 @@ function startApp(token) {
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
-        center: [139.767, 35.681], // 東京中心
+        center: [139.767, 35.681],
         zoom: 14,
         pitchWithRotate: false,
         dragRotate: false
@@ -42,63 +42,73 @@ function startApp(token) {
         }, null, { enableHighAccuracy: true });
     }
 
-    // 入力中の検索（候補出し）
+    // ★多言語・表記ゆれ生成関数
+    function generateSearchQueries(input) {
+        const queries = [input];
+        // よくある有名施設の英語名を強制追加（Mapboxの多言語データ 対策）
+        if (input.includes("東京タワー")) queries.push("Tokyo Tower");
+        if (input.includes("スカイツリー")) queries.push("Skytree");
+        if (input.includes("駅")) queries.push(input.replace("駅", " Station"));
+        return [...new Set(queries)];
+    }
+
     searchBox.addEventListener('input', async (e) => {
         const query = e.target.value;
-        if (!query || query.length < 1) { suggestionsContainer.classList.add('hidden'); return; }
+        if (!query) { suggestionsContainer.classList.add('hidden'); return; }
 
-        // ★対策1: typesから 'place' と 'region' を消去。poiとlandmarkに全振り。
-        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=8&country=jp&types=poi,landmark,address&autocomplete=true&worldview=jp`;
+        const searchTerms = generateSearchQueries(query);
         
-        if (currentLocation) url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
+        // 全てのクエリで並列検索を実行
+        const promises = searchTerms.map(term => 
+            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(term)}.json?access_token=${token}&limit=5&country=jp&types=poi,landmark,address&fuzzyMatch=true&worldview=jp`)
+            .then(res => res.json())
+        );
 
         try {
-            const res = await fetch(url);
-            const data = await res.json();
-            suggestionsList.innerHTML = '';
-            
-            if (data.features?.length > 0) {
-                suggestionsContainer.classList.remove('hidden');
-                data.features.forEach(f => {
-                    const li = document.createElement('li');
-                    // ★対策2: 日本語・英語両方のデータを統合表示
-                    const name = f.text_ja || f.text; 
-                    const address = f.place_name_ja || f.place_name;
-                    li.innerHTML = `<strong>📍 ${name}</strong><br><small>${address}</small>`;
-                    li.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        handleSelection(f, query);
-                    });
-                    suggestionsList.appendChild(li);
-                });
-            }
+            const results = await Promise.all(promises);
+            let allFeatures = results.flatMap(data => data.features || []);
+
+            // 重複排除（同じ座標の地点をまとめる）
+            const seen = new Set();
+            allFeatures = allFeatures.filter(f => {
+                const coord = f.geometry.coordinates.join(',');
+                return seen.has(coord) ? false : seen.add(coord);
+            });
+
+            // ★優先度ソート（POI/建物を最優先にし、地名を下げる）
+            allFeatures.sort((a, b) => {
+                const typePriority = { 'poi': 1, 'landmark': 2, 'address': 3 };
+                return (typePriority[a.place_type[0]] || 4) - (typePriority[b.place_type[0]] || 4);
+            });
+
+            renderSuggestions(allFeatures);
         } catch (err) { console.error(err); }
     });
 
-    // ★対策3: Enter確定時に「地名」を完全に無視して再検索
-    searchBox.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter') {
-            const query = searchBox.value;
-            if (!query) return;
-
-            // 建物(poi)のみに絞って1件だけ取得
-            let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=1&country=jp&types=poi,landmark,address`;
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.features?.length > 0) {
-                handleSelection(data.features[0], query);
-            } else {
-                alert("建物が見つかりません。より具体的な名称を入れてください。");
-            }
+    function renderSuggestions(features) {
+        suggestionsList.innerHTML = '';
+        if (features.length > 0) {
+            suggestionsContainer.classList.remove('hidden');
+            features.forEach(f => {
+                const li = document.createElement('li');
+                const name = f.text_ja || f.text;
+                const address = f.place_name_ja || f.place_name;
+                li.innerHTML = `<strong>📍 ${name}</strong><br><small>${address}</small>`;
+                li.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    handleSelection(f);
+                });
+                suggestionsList.appendChild(li);
+            });
+        } else {
+            suggestionsContainer.classList.add('hidden');
         }
-    });
+    }
 
-    async function handleSelection(feature, originalQuery) {
+    async function handleSelection(feature) {
         if (!currentLocation) return;
         const dest = feature.geometry.coordinates;
         suggestionsContainer.classList.add('hidden');
-        
-        // 画面上の表示名を固定
         searchBox.value = feature.text_ja || feature.text;
         searchBox.blur();
 

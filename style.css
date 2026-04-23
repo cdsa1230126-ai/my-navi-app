@@ -1,17 +1,24 @@
-body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; overflow: hidden; }
+body { margin: 0; padding: 0; font-family: sans-serif; height: 100dvh; overflow: hidden; background: #f0f0f0; }
 #map-container { position: relative; width: 100%; height: 100%; }
 #map { width: 100%; height: 100%; }
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
 .modal-content { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 350px; text-align: center; }
+
 #search-container { position: absolute; top: 15px; left: 10px; z-index: 3000; width: calc(100% - 135px); }
-#search-box { width: 100%; padding: 12px; border-radius: 10px; border: 2px solid #007bff; font-size: 16px; outline: none; }
+#search-box { width: 100%; padding: 14px; border-radius: 10px; border: 2px solid #007bff; font-size: 16px; outline: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
 .map-overlay-btn { position: absolute; right: 10px; z-index: 3000; padding: 10px; background: white; border: 1px solid #ccc; border-radius: 8px; font-size: 12px; font-weight: bold; }
 #follow-button { top: 15px; }
 .settings-btn { top: 65px; }
-#suggestions-container { position: absolute; top: 75px; left: 10px; width: calc(100% - 135px); background: white; z-index: 2500; border-radius: 10px; overflow-y: auto; max-height: 50dvh; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-#suggestions li { padding: 15px; border-bottom: 1px solid #eee; list-style: none; }
-#suggestions li strong { color: #007bff; font-size: 16px; }
-#route-info-container { position: absolute; bottom: 30px; left: 5%; width: 90%; background: white; padding: 20px; border-radius: 15px; z-index: 3500; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-#start-route-button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 10px; }
-.hidden { display: none !important; }
 .active { background: #007bff; color: white; }
+
+#suggestions-container { position: absolute; top: 75px; left: 10px; width: calc(100% - 135px); background: white; z-index: 2500; border-radius: 10px; overflow-y: auto; max-height: 50dvh; box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
+#suggestions li { padding: 15px; border-bottom: 1px solid #f0f0f0; list-style: none; cursor: pointer; }
+#suggestions li strong { color: #007bff; font-size: 16px; }
+#suggestions li small { color: #666; font-size: 12px; display: block; margin-top: 4px; }
+
+#route-info-container { position: absolute; bottom: 30px; left: 5%; width: 90%; background: white; padding: 20px; border-radius: 16px; z-index: 3500; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+#start-route-button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 10px; }
+
+.hidden { display: none !important; }

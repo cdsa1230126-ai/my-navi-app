@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>究極ナビ - 施設名検索強化版</title>
+  <title>究極ナビ - 多言語ハイブリッド検索版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -13,12 +13,12 @@
     <div class="modal-content">
       <h3>Mapbox API設定</h3>
       <input type="text" id="api-key-input" placeholder="pk.ey..." />
-      <button id="save-api-key">設定を保存</button>
+      <button id="save-api-key">設定を保存して開始</button>
     </div>
   </div>
 
   <div id="search-container">
-    <input type="text" id="search-box" placeholder="施設名（例：東京タワー）を入力" /> 
+    <input type="text" id="search-box" placeholder="場所の名前を入力（例：東京タワー）" /> 
   </div>
 
   <div id="map-container">
@@ -39,7 +39,6 @@
   <div id="suggestions-container" class="hidden">
     <ul id="suggestions"></ul>
   </div>
-
   <script type="module" src="script.js"></script>
 </body>
 </html>
