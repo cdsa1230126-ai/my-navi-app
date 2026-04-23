@@ -1,31 +1,26 @@
-body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; overflow: hidden; }
+body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; overflow: hidden; background: #f8f9fa; }
 #map-container { position: relative; width: 100%; height: 100%; }
 #map { width: 100%; height: 100%; }
 
-/* API入力 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-.modal-content { background: white; padding: 25px; border-radius: 15px; width: 80%; text-align: center; }
-.modal-content input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-#save-api-key { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold; }
+.modal-content { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 350px; text-align: center; }
+.modal-content input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+#save-api-key { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; }
 
-/* 検索窓 */
 #search-container { position: absolute; top: 15px; left: 10px; z-index: 3000; width: calc(100% - 135px); }
-#search-box { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #007bff; font-size: 16px; outline: none; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+#search-box { width: 100%; padding: 14px; border-radius: 10px; border: 2px solid #007bff; font-size: 16px; outline: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 
-/* ボタン類 */
 .map-overlay-btn { position: absolute; right: 10px; z-index: 3000; padding: 10px; background: white; border: 1px solid #ccc; border-radius: 8px; font-size: 12px; font-weight: bold; }
 #follow-button { top: 15px; }
 .settings-btn { top: 65px; }
-.active { background: #007bff; color: white; }
+.active { background: #007bff; color: white; border-color: #0056b3; }
 
-/* 検索候補 */
-#suggestions-container { position: absolute; top: 65px; left: 10px; width: calc(100% - 135px); background: white; z-index: 2500; border-radius: 8px; overflow-y: auto; max-height: 50dvh; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-#suggestions li { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; list-style: none; line-height: 1.4; }
-#suggestions li strong { color: #007bff; font-size: 15px; }
-#suggestions li small { color: #777; font-size: 12px; display: block; }
+#suggestions-container { position: absolute; top: 75px; left: 10px; width: calc(100% - 135px); background: white; z-index: 2500; border-radius: 10px; overflow-y: auto; max-height: 50dvh; box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
+#suggestions li { padding: 15px; border-bottom: 1px solid #f0f0f0; list-style: none; cursor: pointer; }
+#suggestions li strong { color: #007bff; font-size: 16px; }
+#suggestions li small { color: #666; font-size: 12px; display: block; margin-top: 4px; }
 
-/* ルートパネル */
-#route-info-container { position: absolute; bottom: 25px; left: 5%; width: 90%; background: white; padding: 15px; border-radius: 12px; z-index: 3500; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-#start-route-button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; margin-top: 8px; }
+#route-info-container { position: absolute; bottom: 30px; left: 5%; width: 90%; background: white; padding: 20px; border-radius: 16px; z-index: 3500; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 1px solid #eee; }
+#start-route-button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 10px; }
 
 .hidden { display: none !important; }

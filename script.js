@@ -60,57 +60,64 @@ function startApp(token) {
         followButton.classList.toggle('active', isFollowing);
     });
 
-    // 入力中の候補表示
+    // 多言語検索対応の入力処理
     searchBox.addEventListener('input', async (e) => {
         const query = e.target.value;
         if (!query) { suggestionsContainer.classList.add('hidden'); return; }
 
-        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=5&language=ja&country=jp&types=poi,landmark,address&autocomplete=true`;
-        if (currentLocation) url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
-
-        const res = await fetch(url);
-        const data = await res.json();
-        suggestionsList.innerHTML = '';
-        if (data.features?.length > 0) {
-            suggestionsContainer.classList.remove('hidden');
-            data.features.forEach(f => {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>📍 ${f.text_ja || f.text}</strong><br><small>${f.place_name}</small>`;
-                li.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    handleSelection(f);
-                });
-                suggestionsList.appendChild(li);
-            });
+        // language=jaをあえて外す、またはグローバル設定にすることで多言語ヒット率を上げる
+        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=10&country=jp&types=poi,landmark,address&autocomplete=true&worldview=jp`;
+        
+        if (currentLocation) {
+            url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
         }
+
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            suggestionsList.innerHTML = '';
+            
+            if (data.features?.length > 0) {
+                suggestionsContainer.classList.remove('hidden');
+                data.features.forEach(f => {
+                    const li = document.createElement('li');
+                    // 名前は日本語があれば日本語、なければメイン名を表示
+                    const name = f.text_ja || f.text;
+                    const address = f.place_name_ja || f.place_name;
+                    li.innerHTML = `<strong>📍 ${name}</strong><br><small>${address}</small>`;
+                    li.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        handleSelection(f, query); // 元のクエリも渡す
+                    });
+                    suggestionsList.appendChild(li);
+                });
+            }
+        } catch (err) { console.error(err); }
     });
 
-    // ★重要：Enterキーを押した時の処理を「入力文字優先」に改善
     searchBox.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
             const query = searchBox.value;
             if (!query) return;
 
-            // 候補リストから選ぶのではなく、今入っている文字で「最強の1件」を検索し直す
-            let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=1&language=ja&country=jp`;
+            // Enter時は「入力されたそのまま」で再検索（番地2-8などを逃さないため）
+            let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=1&country=jp`;
             const res = await fetch(url);
             const data = await res.json();
 
             if (data.features?.length > 0) {
-                handleSelection(data.features[0]);
-            } else {
-                alert("場所が見つかりませんでした。");
+                handleSelection(data.features[0], query);
             }
         }
     });
 
-    async function handleSelection(feature) {
+    async function handleSelection(feature, originalQuery) {
         if (!currentLocation) return;
         const dest = feature.geometry.coordinates;
         suggestionsContainer.classList.add('hidden');
         
-        // 検索ボックスの中身を、勝手に書き換えずに「入力した名前」か「見つかった名前」をセット
-        searchBox.value = feature.text_ja || feature.text;
+        // 画面に表示する名前を決定（番地入力なら入力文字を、施設なら施設名を表示）
+        searchBox.value = originalQuery || feature.text_ja || feature.text;
         searchBox.blur();
 
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&steps=true&language=ja&access_token=${token}`;
@@ -130,8 +137,7 @@ function startApp(token) {
         const bounds = new mapboxgl.LngLatBounds(currentLocation, dest);
         map.fitBounds(bounds, { padding: 80 });
 
-        // 表示名を入力された文字に合わせて調整
-        document.getElementById('destination-name').textContent = `目的地: ${feature.text_ja || feature.text}`;
+        document.getElementById('destination-name').textContent = `目的地: ${searchBox.value}`;
         document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
         document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)}分`;
         routeInfoContainer.classList.remove('hidden');
