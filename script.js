@@ -19,8 +19,7 @@ function startApp(token) {
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
         center: [139.767, 35.681],
-        zoom: 14,
-        pitchWithRotate: false
+        zoom: 14
     });
 
     const searchBox = document.getElementById('search-box');
@@ -30,66 +29,62 @@ function startApp(token) {
     const routeInfoContainer = document.getElementById('route-info-container');
 
     let currentLocation = null;
-    let userMarker = null;
     let destinationMarker = null;
 
     if ("geolocation" in navigator) {
         navigator.geolocation.watchPosition(p => {
-            // ★422エラー対策: 座標の精度を小数点6桁に固定して不正な文字列混入を防ぐ
+            // ★重要：422エラー対策。桁数を丸めて綺麗な文字列にする
             currentLocation = [
-                parseFloat(p.coords.longitude.toFixed(6)),
-                parseFloat(p.coords.latitude.toFixed(6))
+                Number(p.coords.longitude.toFixed(6)),
+                Number(p.coords.latitude.toFixed(6))
             ];
-            if (!userMarker) {
-                userMarker = new mapboxgl.Marker({ color: '#007bff' }).setLngLat(currentLocation).addTo(map);
-            } else { userMarker.setLngLat(currentLocation); }
-        }, err => console.error("位置情報取得失敗:", err), { enableHighAccuracy: true });
+        }, null, { enableHighAccuracy: true });
     }
 
-    // 多言語バリエーション生成（以前のアイデアを実装）
+    // 裏側で探すための多言語バリエーション
     function getSearchVariants(query) {
         const variants = [query];
-        const dict = {
+        const dictionary = {
             "東京タワー": ["Tokyo Tower"],
             "スカイツリー": ["Tokyo Skytree"],
-            "羽田空港": ["Haneda Airport"],
-            "成田空港": ["Narita Airport"]
+            "浅草寺": ["Senso-ji Temple"],
+            "富士山": ["Mt. Fuji"]
         };
-        if (dict[query]) variants.push(...dict[query]);
+        if (dictionary[query]) variants.push(...dictionary[query]);
         return [...new Set(variants)];
     }
 
-    let searchTimeout = null;
+    let timeout = null;
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
-        clearTimeout(searchTimeout);
-
-        if (!query) {
+        clearTimeout(timeout);
+        
+        if (!query || query.length < 1) {
             suggestionsContainer.classList.add('hidden');
             searchLoader.classList.add('hidden');
             return;
         }
 
-        searchTimeout = setTimeout(async () => {
-            // ★演出：探していますを表示
+        timeout = setTimeout(async () => {
+            // 演出：探していますを表示
             searchLoader.classList.remove('hidden');
             suggestionsContainer.classList.add('hidden');
 
             const variants = getSearchVariants(query);
             const promises = variants.map(v => {
-                // ★422エラー対策: proximityの値をクリーンに構築
+                // ★422対策：proximityの組み立てをクリーンに
                 let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(v)}.json?access_token=${token}&limit=5&country=jp&types=poi,landmark,address&worldview=jp`;
                 if (currentLocation) {
                     url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
                 }
-                return fetch(url).then(r => r.ok ? r.json() : null);
+                return fetch(url).then(res => res.ok ? res.json() : null);
             });
 
             try {
                 const results = await Promise.all(promises);
                 let allFeatures = results.filter(r => r).flatMap(data => data.features || []);
 
-                // 重複排除とPOI優先
+                // 重複排除とPOI(建物)優先ソート
                 const seen = new Set();
                 allFeatures = allFeatures.filter(f => {
                     const coord = f.geometry.coordinates.join(',');
@@ -101,11 +96,11 @@ function startApp(token) {
 
                 renderSuggestions(allFeatures);
             } catch (err) {
-                console.error("検索エラー:", err);
+                console.error("検索失敗:", err);
             } finally {
                 searchLoader.classList.add('hidden');
             }
-        }, 600); // 少し長めに待ってから検索（通信節約）
+        }, 500); 
     });
 
     function renderSuggestions(features) {
@@ -114,7 +109,7 @@ function startApp(token) {
             suggestionsContainer.classList.remove('hidden');
             features.forEach(f => {
                 const li = document.createElement('li');
-                li.innerHTML = `<strong>📍 ${f.text_ja || f.text}</strong><br><small>${f.place_name_ja || f.place_name}</small>`;
+                li.innerHTML = `<strong>📍 ${f.text_ja || f.text}</strong><br><small>${f.place_name}</small>`;
                 li.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     handleSelection(f);
@@ -132,24 +127,22 @@ function startApp(token) {
 
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&steps=true&language=ja&access_token=${token}`;
         
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            if (!data.routes?.length) return;
-            const route = data.routes[0];
-            
-            if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
-            map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
-            map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
-            
-            if (destinationMarker) destinationMarker.remove();
-            destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(dest).addTo(map);
-            map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, dest), { padding: 80 });
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.routes?.length) return;
+        
+        const route = data.routes[0];
+        if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
+        map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
+        
+        if (destinationMarker) destinationMarker.remove();
+        destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(dest).addTo(map);
+        map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, dest), { padding: 80 });
 
-            document.getElementById('destination-name').textContent = `目的地: ${searchBox.value}`;
-            document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
-            document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)}分`;
-            routeInfoContainer.classList.remove('hidden');
-        } catch (e) { console.error("ルート取得エラー:", e); }
+        document.getElementById('destination-name').textContent = `目的地: ${searchBox.value}`;
+        document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
+        document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)}分`;
+        routeInfoContainer.classList.remove('hidden');
     }
 }
