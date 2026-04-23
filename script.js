@@ -35,12 +35,10 @@ function startApp(mbToken, yhId) {
     let currentLocation = null;
     let destinationMarker = null;
 
-    // 現在地の取得
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
     }, null, { enableHighAccuracy: true });
 
-    // Yahoo! API 検索実行
     let timeout = null;
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
@@ -52,7 +50,7 @@ function startApp(mbToken, yhId) {
 
         timeout = setTimeout(() => {
             searchLoader.classList.remove('hidden');
-            // JSONPでYahoo!検索を叩く
+            // Yahoo! ローカル検索APIを使用（JSONP方式）
             const yahooUrl = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yhId}&query=${encodeURIComponent(query)}&output=json&callback=handleYahooResults`;
             const script = document.createElement('script');
             script.src = yahooUrl;
@@ -61,7 +59,7 @@ function startApp(mbToken, yhId) {
         }, 500);
     });
 
-    // Yahoo!の結果をリスト化し、クリックイベントを付与
+    // ★検索結果の建物名をクリックした時の処理
     window.handleYahooResults = (data) => {
         searchLoader.classList.add('hidden');
         suggestionsList.innerHTML = '';
@@ -69,7 +67,7 @@ function startApp(mbToken, yhId) {
 
         suggestionsContainer.classList.remove('hidden');
         data.Feature.forEach(f => {
-            // Yahoo!の座標は "経度,緯度" の文字列
+            // Yahoo!の座標形式 "経度,緯度" を数値に変換
             const coords = f.Geometry.Coordinates.split(',');
             const lng = parseFloat(coords[0]);
             const lat = parseFloat(coords[1]);
@@ -77,69 +75,44 @@ function startApp(mbToken, yhId) {
             const li = document.createElement('li');
             li.innerHTML = `<strong>📍 ${f.Name}</strong><br><small>${f.Property.Address}</small>`;
             
-            // ★ここが「建物名で目的地を設定」する核心部分
+            // 建物名を目的地として確定
             li.onclick = () => {
-                searchBox.value = f.Name; // 入力欄を建物名に書き換え
-                suggestionsContainer.classList.add('hidden'); // リストを閉じる
-                handleSelection(f.Name, [lng, lat]); // Mapboxに座標を渡してルート作成
+                searchBox.value = f.Name;
+                suggestionsContainer.classList.add('hidden');
+                drawRoute(f.Name, [lng, lat]); // Mapboxに座標を投げる
             };
             suggestionsList.appendChild(li);
         });
     };
 
-    // Mapbox Directions APIでルートを描画
-    async function handleSelection(name, destCoords) {
-        if (!currentLocation) {
-            alert("現在地を取得中です。GPSをオンにして少しお待ちください。");
-            return;
-        }
+    async function drawRoute(name, destCoords) {
+        if (!currentLocation) return alert("現在地を取得中です...");
 
+        // Mapbox Directions APIでルート取得
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
-        try {
-            const res = await fetch(url);
-            const routeData = await res.json();
-            const route = routeData.routes[0];
+        const res = await fetch(url);
+        const data = await res.json();
+        const route = data.routes[0];
 
-            // 以前のルートを消して新しく描画
-            if (map.getSource('route')) {
-                map.removeLayer('route');
-                map.removeSource('route');
-            }
-
-            map.addSource('route', {
-                type: 'geojson',
-                data: { type: 'Feature', geometry: route.geometry }
-            });
-
-            map.addLayer({
-                id: 'route',
-                type: 'line',
-                source: 'route',
-                paint: { 'line-color': '#007bff', 'line-width': 6 }
-            });
-
-            // 目的地にマーカーを立てる
-            if (destinationMarker) destinationMarker.remove();
-            destinationMarker = new mapboxgl.Marker({ color: 'red' })
-                .setLngLat(destCoords)
-                .addTo(map);
-
-            // ルート全体が見えるようにズーム調整
-            const bounds = new mapboxgl.LngLatBounds()
-                .extend(currentLocation)
-                .extend(destCoords);
-            map.fitBounds(bounds, { padding: 80 });
-
-            // 下部パネルに情報を表示
-            document.getElementById('destination-name').textContent = name;
-            document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)} km`;
-            document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)} 分`;
-            document.getElementById('route-info-container').classList.remove('hidden');
-
-        } catch (error) {
-            console.error("Route error:", error);
-            alert("ルートが計算できませんでした。");
+        // 地図にルートを描画
+        if (map.getSource('route')) {
+            map.removeLayer('route');
+            map.removeSource('route');
         }
+        map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
+
+        // 目的地マーカー
+        if (destinationMarker) destinationMarker.remove();
+        destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
+        
+        map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, destCoords), { padding: 80 });
+
+        // 情報パネル表示
+        document.getElementById('destination-name').textContent = name;
+        document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
+        document.getElementById('route-duration').textContent = `${Math.round(route.duration / 60)} 分`;
+        document.getElementById('route-info-container').classList.remove('hidden');
     }
 }
