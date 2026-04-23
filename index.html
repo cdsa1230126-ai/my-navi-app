@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>究極ナビマップ - 国内自動選択版</title>
+  <title>究極ナビ - 施設名検索強化版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -12,32 +12,27 @@
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3>Mapbox API設定</h3>
-      <p>個人のアクセストークンを入力してください。</p>
       <input type="text" id="api-key-input" placeholder="pk.ey..." />
-      <button id="save-api-key">設定を保存して開始</button>
+      <button id="save-api-key">設定を保存</button>
     </div>
   </div>
 
-  <div id="instruction-banner" class="hidden">
-    <div id="next-step-text">案内を開始します</div>
-  </div>
-
   <div id="search-container">
-    <input type="text" id="search-box" placeholder="目的地を入力して確定" /> 
+    <input type="text" id="search-box" placeholder="施設名（例：東京タワー）を入力" /> 
   </div>
 
   <div id="map-container">
     <div id="map"></div>
-    <button id="follow-button" class="map-overlay-btn active">◎ 現在地</button>
-    <button id="settings-button" class="map-overlay-btn settings-btn">⚙ 設定</button>
+    <button id="follow-button" class="map-overlay-btn active">◎ 現在地を追従</button>
+    <button id="settings-button" class="map-overlay-btn settings-btn">⚙ API再設定</button>
     
     <div id="route-info-container" class="hidden">
       <ul id="route-info-list">
-        <li id="destination-name"></li>
+        <li id="destination-name" style="font-weight:bold; color:#007bff;"></li>
         <li id="route-distance"></li>
         <li id="route-duration"></li>
       </ul>
-      <button id="start-route-button" class="hidden">案内開始</button>
+      <button id="start-route-button">案内開始</button>
     </div>
   </div>
 
@@ -45,7 +40,6 @@
     <ul id="suggestions"></ul>
   </div>
 
-  <div id="guidance-message" class="guidance-hidden"></div>
   <script type="module" src="script.js"></script>
 </body>
 </html>

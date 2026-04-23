@@ -46,6 +46,7 @@ function startApp(token) {
     let isFollowing = true;
     let topSuggestion = null;
 
+    // 現在地監視
     if ("geolocation" in navigator) {
         navigator.geolocation.watchPosition(p => {
             currentLocation = [p.coords.longitude, p.coords.latitude];
@@ -61,15 +62,16 @@ function startApp(token) {
         followButton.classList.toggle('active', isFollowing);
     });
 
+    // 施設名検索強化ロジック
     searchBox.addEventListener('input', async (e) => {
         const query = e.target.value;
-        if (!query || query.length < 2) { 
+        if (!query || query.length < 1) { 
             suggestionsContainer.classList.add('hidden'); 
             return; 
         }
 
-        // 重要：types=poi,place,locality を指定して「名称」を優先。さらに country=jp で固定。
-        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=10&language=ja&country=jp&types=poi,place,address,locality`;
+        // 施設(poi)とランドマーク(landmark)を最優先。fuzzyMatchで入力ミスもカバー。
+        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=10&language=ja&country=jp&types=poi,landmark,place,address&autocomplete=true&fuzzyMatch=true`;
         
         if (currentLocation) {
             url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
@@ -83,10 +85,14 @@ function startApp(token) {
             if (data.features?.length > 0) {
                 topSuggestion = data.features[0];
                 suggestionsContainer.classList.remove('hidden');
+
                 data.features.forEach(f => {
                     const li = document.createElement('li');
-                    // 「名前（住所の短い版）」で表示して、何かわかりやすくする
-                    li.innerHTML = `<strong>${f.text}</strong><br><small style="color:#666">${f.place_name}</small>`;
+                    const displayName = f.text_ja || f.text;
+                    const address = f.place_name_ja || f.place_name;
+                    
+                    li.innerHTML = `<strong>📍 ${displayName}</strong><br><small>${address}</small>`;
+                    
                     li.addEventListener('mousedown', (e) => {
                         e.preventDefault();
                         handleSelection(f);
@@ -97,9 +103,10 @@ function startApp(token) {
         } catch (err) { console.error(err); }
     });
 
+    // キーボードのEnterで自動決定
     searchBox.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            if (topSuggestion) handleSelection(topSuggestion);
+        if (e.key === 'Enter' && topSuggestion) {
+            handleSelection(topSuggestion);
         }
     });
 
@@ -107,14 +114,14 @@ function startApp(token) {
         if (!currentLocation) return;
         const dest = feature.geometry.coordinates;
         suggestionsContainer.classList.add('hidden');
-        searchBox.value = feature.text;
+        searchBox.value = feature.text_ja || feature.text;
         searchBox.blur();
 
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&steps=true&language=ja&access_token=${token}`;
         
         const res = await fetch(url);
         const data = await res.json();
-        if (!data.routes?.length) { alert("ルートが見つかりません。"); return; }
+        if (!data.routes?.length) return;
         const route = data.routes[0];
         
         if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
@@ -127,10 +134,9 @@ function startApp(token) {
         const bounds = new mapboxgl.LngLatBounds(currentLocation, dest);
         map.fitBounds(bounds, { padding: 80 });
 
-        document.getElementById('destination-name').textContent = `目的地: ${feature.text}`;
+        document.getElementById('destination-name').textContent = `目的地: ${feature.text_ja || feature.text}`;
         document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
         document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)}分`;
         routeInfoContainer.classList.remove('hidden');
-        startRouteButton.classList.remove('hidden');
     }
 }
