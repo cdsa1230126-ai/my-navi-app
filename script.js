@@ -44,7 +44,7 @@ function startApp(token) {
     let userMarker = null;
     let destinationMarker = null;
     let isFollowing = true;
-    let topSuggestion = null; // 一番上の候補を保持する変数
+    let topSuggestion = null;
 
     if ("geolocation" in navigator) {
         navigator.geolocation.watchPosition(p => {
@@ -61,17 +61,19 @@ function startApp(token) {
         followButton.classList.toggle('active', isFollowing);
     });
 
-    // 検索入力処理
     searchBox.addEventListener('input', async (e) => {
         const query = e.target.value;
-        if (!query) { 
+        if (!query || query.length < 2) { 
             suggestionsContainer.classList.add('hidden'); 
-            topSuggestion = null;
             return; 
         }
 
-        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=5&language=ja&country=jp`;
-        if (currentLocation) url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
+        // 重要：types=poi,place,locality を指定して「名称」を優先。さらに country=jp で固定。
+        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=10&language=ja&country=jp&types=poi,place,address,locality`;
+        
+        if (currentLocation) {
+            url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
+        }
 
         try {
             const res = await fetch(url);
@@ -79,73 +81,56 @@ function startApp(token) {
             suggestionsList.innerHTML = '';
             
             if (data.features?.length > 0) {
-                topSuggestion = data.features[0]; // 一番上の候補を記憶
+                topSuggestion = data.features[0];
                 suggestionsContainer.classList.remove('hidden');
                 data.features.forEach(f => {
                     const li = document.createElement('li');
-                    li.textContent = f.place_name;
+                    // 「名前（住所の短い版）」で表示して、何かわかりやすくする
+                    li.innerHTML = `<strong>${f.text}</strong><br><small style="color:#666">${f.place_name}</small>`;
                     li.addEventListener('mousedown', (e) => {
                         e.preventDefault();
                         handleSelection(f);
                     });
                     suggestionsList.appendChild(li);
                 });
-            } else {
-                topSuggestion = null;
             }
         } catch (err) { console.error(err); }
     });
 
-    // キーボードの「確定/完了」が押された時
     searchBox.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            if (topSuggestion) {
-                handleSelection(topSuggestion);
-            } else {
-                alert("目的地が見つかりません。候補から選んでください。");
-            }
+            if (topSuggestion) handleSelection(topSuggestion);
         }
     });
 
     async function handleSelection(feature) {
-        if (!currentLocation) {
-            alert("現在地を取得中です。");
-            return;
-        }
+        if (!currentLocation) return;
         const dest = feature.geometry.coordinates;
         suggestionsContainer.classList.add('hidden');
         searchBox.value = feature.text;
-        searchBox.blur(); // キーボードを閉じる
+        searchBox.blur();
 
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&steps=true&language=ja&access_token=${token}`;
         
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            if (!data.routes?.length) return;
-            const route = data.routes[0];
-            
-            if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
-            map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
-            map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
-            
-            if (destinationMarker) destinationMarker.remove();
-            destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(dest).addTo(map);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.routes?.length) { alert("ルートが見つかりません。"); return; }
+        const route = data.routes[0];
+        
+        if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
+        map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
+        
+        if (destinationMarker) destinationMarker.remove();
+        destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(dest).addTo(map);
 
-            const bounds = new mapboxgl.LngLatBounds(currentLocation, dest);
-            map.fitBounds(bounds, { padding: 80 });
+        const bounds = new mapboxgl.LngLatBounds(currentLocation, dest);
+        map.fitBounds(bounds, { padding: 80 });
 
-            document.getElementById('destination-name').textContent = `目的地: ${feature.text}`;
-            document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
-            document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)}分`;
-            routeInfoContainer.classList.remove('hidden');
-            startRouteButton.classList.remove('hidden');
-        } catch (err) { alert("ルート検索に失敗しました。"); }
+        document.getElementById('destination-name').textContent = `目的地: ${feature.text}`;
+        document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
+        document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)}分`;
+        routeInfoContainer.classList.remove('hidden');
+        startRouteButton.classList.remove('hidden');
     }
-
-    startRouteButton.addEventListener('click', () => {
-        document.getElementById('instruction-banner').classList.remove('hidden');
-        routeInfoContainer.classList.add('hidden');
-        // 音声案内などの開始処理をここに
-    });
 }
