@@ -15,14 +15,16 @@ body {
     background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center;
 }
 .modal-content input {
-    width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px;
+    width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;
 }
 #save-api-key {
     width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold;
 }
 
 /* UIパーツ */
-#search-container { position: absolute; top: 15px; left: 10px; z-index: 3000; width: calc(100% - 130px); }
+#search-container { 
+    position: absolute; top: 15px; left: 10px; z-index: 3000; width: calc(100% - 130px); 
+}
 #search-box { 
     width: 100%; padding: 12px; border-radius: 10px; border: 2px solid #007bff; 
     font-size: 16px; background: white; outline: none; box-sizing: border-box;
@@ -34,41 +36,18 @@ body {
 }
 #follow-button { top: 15px; }
 .settings-btn { top: 70px; }
-.map-overlay-btn.active { background: #007bff; color: white; border-color: #0056b3; }
+.map-overlay-btn.active { background: #007bff; color: white; }
 
-#instruction-banner {
-    position: absolute; top: 80px; left: 5%; width: 90%; background: #333; color: white;
-    padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 10px; z-index: 2000;
+#suggestions-container { 
+    position: absolute; top: 70px; left: 10px; width: calc(100% - 130px); 
+    background: white; z-index: 2500; border-radius: 10px; overflow-y: auto; max-height: 50dvh; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
+#suggestions li { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; list-style: none; }
 
 #route-info-container {
     position: absolute; bottom: 30px; left: 5%; width: 90%; background: white;
     padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 3500;
 }
-#route-info-list { list-style: none; padding: 0; margin-bottom: 15px; }
-#route-info-list li { margin-bottom: 5px; font-weight: bold; color: #333; }
 #start-route-button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; }
 
-/* キーボード */
-#keyboard-area { 
-    position: absolute; bottom: -100%; left: 0; width: 100%; background: #d1d4d9; 
-    transition: bottom 0.3s; z-index: 4000; padding-bottom: env(safe-area-inset-bottom);
-}
-body.keyboard-active #keyboard-area { bottom: 0; }
-.custom-keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 10px; }
-.key-flick { height: 45px; background: white; border: none; border-radius: 5px; font-size: 16px; box-shadow: 0 1px 0 #888; }
-#keyboard-controls { display: flex; gap: 5px; padding: 0 10px 10px; }
-.special-key { flex: 1; height: 45px; border: none; border-radius: 5px; background: #adb5bd; font-size: 11px; font-weight: bold; }
-.search-execute-key { background: #007bff; color: white; }
-
-#suggestions-container { 
-    position: absolute; top: 70px; left: 10px; width: calc(100% - 130px); 
-    background: white; z-index: 2500; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-#suggestions li { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; list-style: none; }
-.hidden, .guidance-hidden { display: none !important; }
-
-#guidance-message {
-    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; z-index: 5000;
-}
+.hidden { display: none !important; }
