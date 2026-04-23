@@ -1,148 +1,118 @@
+// ブラウザの保存領域からキーを取得
+const mapboxToken = localStorage.getItem('mapbox_user_token');
+const yahooAppId = localStorage.getItem('yahoo_app_id');
+
 const modal = document.getElementById('api-config-modal');
-const apiKeyInput = document.getElementById('api-key-input');
-const saveBtn = document.getElementById('save-api-key');
 
-let savedToken = localStorage.getItem('mapbox_user_token');
-if (!savedToken) { modal.classList.remove('hidden'); } else { startApp(savedToken); }
+if (!mapboxToken || !yahooAppId) {
+    modal.classList.remove('hidden');
+} else {
+    startApp(mapboxToken, yahooAppId);
+}
 
-saveBtn.addEventListener('click', () => {
-    const token = apiKeyInput.value.trim();
-    if (token.startsWith('pk.')) {
-        localStorage.setItem('mapbox_user_token', token);
+// キーを保存する処理
+document.getElementById('save-api-keys').addEventListener('click', () => {
+    const mb = document.getElementById('mapbox-token-input').value.trim();
+    const yh = document.getElementById('yahoo-id-input').value.trim();
+    
+    if (mb.startsWith('pk.') && yh.length > 10) {
+        localStorage.setItem('mapbox_user_token', mb);
+        localStorage.setItem('yahoo_app_id', yh);
         location.reload();
+    } else {
+        alert("正しいID/トークンを入力してください。");
     }
 });
 
-function startApp(token) {
-    mapboxgl.accessToken = token;
+function startApp(mbToken, yhId) {
+    mapboxgl.accessToken = mbToken;
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
         center: [139.767, 35.681],
-        zoom: 14
+        zoom: 13
     });
 
     const searchBox = document.getElementById('search-box');
     const searchLoader = document.getElementById('search-loader');
     const suggestionsContainer = document.getElementById('suggestions-container');
     const suggestionsList = document.getElementById('suggestions');
-    const routeInfoContainer = document.getElementById('route-info-container');
 
     let currentLocation = null;
     let destinationMarker = null;
 
-    if ("geolocation" in navigator) {
-        navigator.geolocation.watchPosition(p => {
-            // ★重要：422エラー対策。桁数を丸めて綺麗な文字列にする
-            currentLocation = [
-                Number(p.coords.longitude.toFixed(6)),
-                Number(p.coords.latitude.toFixed(6))
-            ];
-        }, null, { enableHighAccuracy: true });
-    }
-
-    // 裏側で探すための多言語バリエーション
-    function getSearchVariants(query) {
-        const variants = [query];
-        const dictionary = {
-            "東京タワー": ["Tokyo Tower"],
-            "スカイツリー": ["Tokyo Skytree"],
-            "浅草寺": ["Senso-ji Temple"],
-            "富士山": ["Mt. Fuji"]
-        };
-        if (dictionary[query]) variants.push(...dictionary[query]);
-        return [...new Set(variants)];
-    }
+    // 現在地取得
+    navigator.geolocation.watchPosition(p => {
+        currentLocation = [p.coords.longitude, p.coords.latitude];
+    }, null, { enableHighAccuracy: true });
 
     let timeout = null;
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         clearTimeout(timeout);
-        
-        if (!query || query.length < 1) {
-            suggestionsContainer.classList.add('hidden');
+        if (!query) {
             searchLoader.classList.add('hidden');
+            suggestionsContainer.classList.add('hidden');
             return;
         }
 
-        timeout = setTimeout(async () => {
-            // 演出：探していますを表示
+        timeout = setTimeout(() => {
             searchLoader.classList.remove('hidden');
-            suggestionsContainer.classList.add('hidden');
-
-            const variants = getSearchVariants(query);
-            const promises = variants.map(v => {
-                // ★422対策：proximityの組み立てをクリーンに
-                let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(v)}.json?access_token=${token}&limit=5&country=jp&types=poi,landmark,address&worldview=jp`;
-                if (currentLocation) {
-                    url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
-                }
-                return fetch(url).then(res => res.ok ? res.json() : null);
-            });
-
-            try {
-                const results = await Promise.all(promises);
-                let allFeatures = results.filter(r => r).flatMap(data => data.features || []);
-
-                // 重複排除とPOI(建物)優先ソート
-                const seen = new Set();
-                allFeatures = allFeatures.filter(f => {
-                    const coord = f.geometry.coordinates.join(',');
-                    return seen.has(coord) ? false : seen.add(coord);
-                }).sort((a, b) => {
-                    const prio = { 'poi': 1, 'landmark': 2, 'address': 3 };
-                    return (prio[a.place_type[0]] || 4) - (prio[b.place_type[0]] || 4);
-                });
-
-                renderSuggestions(allFeatures);
-            } catch (err) {
-                console.error("検索失敗:", err);
-            } finally {
-                searchLoader.classList.add('hidden');
-            }
-        }, 500); 
+            
+            // ★Yahoo! APIで検索（JSONP方式）
+            const yahooUrl = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yhId}&query=${encodeURIComponent(query)}&output=json&callback=handleYahooResults`;
+            const script = document.createElement('script');
+            script.src = yahooUrl;
+            document.body.appendChild(script);
+            document.body.removeChild(script);
+        }, 500);
     });
 
-    function renderSuggestions(features) {
+    // Yahoo!の検索結果を表示
+    window.handleYahooResults = (data) => {
+        searchLoader.classList.add('hidden');
         suggestionsList.innerHTML = '';
-        if (features.length > 0) {
-            suggestionsContainer.classList.remove('hidden');
-            features.forEach(f => {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>📍 ${f.text_ja || f.text}</strong><br><small>${f.place_name}</small>`;
-                li.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    handleSelection(f);
-                });
-                suggestionsList.appendChild(li);
-            });
-        }
-    }
+        if (!data.Feature) return;
 
-    async function handleSelection(feature) {
-        if (!currentLocation) return;
-        const dest = feature.geometry.coordinates;
+        suggestionsContainer.classList.remove('hidden');
+        data.Feature.forEach(f => {
+            const coords = f.Geometry.Coordinates.split(',');
+            const li = document.createElement('li');
+            li.innerHTML = `<strong>📍 ${f.Name}</strong><br><small>${f.Property.Address}</small>`;
+            li.onclick = () => {
+                handleSelection(f.Name, [parseFloat(coords[0]), parseFloat(coords[1])]);
+            };
+            suggestionsList.appendChild(li);
+        });
+    };
+
+    // ルート案内実行
+    async function handleSelection(name, dest) {
+        if (!currentLocation) return alert("現在地を取得中です...");
         suggestionsContainer.classList.add('hidden');
-        searchBox.value = feature.text_ja || feature.text;
+        searchBox.value = name;
 
-        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&steps=true&language=ja&access_token=${token}`;
+        // Mapbox Directions APIで最短ルート計算
+        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
         const res = await fetch(url);
         const data = await res.json();
-        if (!data.routes?.length) return;
-        
         const route = data.routes[0];
+
+        // 地図上にルートを描画
         if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
         map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
-        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
-        
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 5 } });
+
+        // マーカー設置
         if (destinationMarker) destinationMarker.remove();
         destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(dest).addTo(map);
-        map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, dest), { padding: 80 });
+        map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, dest), { padding: 100 });
 
-        document.getElementById('destination-name').textContent = `目的地: ${searchBox.value}`;
-        document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
-        document.getElementById('route-duration').textContent = `時間: ${Math.round(route.duration / 60)}分`;
-        routeInfoContainer.classList.remove('hidden');
+        // 情報パネル表示
+        document.getElementById('destination-name').textContent = name;
+        document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
+        document.getElementById('route-duration').textContent = `${Math.round(route.duration / 60)} 分`;
+        document.getElementById('route-info-container').classList.remove('hidden');
     }
 }

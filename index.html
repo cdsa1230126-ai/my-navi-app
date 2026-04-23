@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>究極ナビ - 修正版</title>
+  <title>最強ハイブリッド・ナビ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -11,35 +11,35 @@
 <body>
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h3>APIキー設定</h3>
-      <input type="text" id="api-key-input" placeholder="pk.ey..." />
-      <button id="save-api-key">設定を保存</button>
+      <h3>初期設定</h3>
+      <p>GitHubにキーを公開しないための安全な設定です。</p>
+      <input type="text" id="mapbox-token-input" placeholder="Mapbox Access Token (pk.ey...)" />
+      <input type="text" id="yahoo-id-input" placeholder="Yahoo! Application ID (dmVy...)" />
+      <button id="save-api-keys">設定を保存して開始</button>
+      <p style="font-size: 11px; color: #888; margin-top: 10px;">※キーはブラウザにのみ保存されます</p>
     </div>
   </div>
 
   <div id="search-container">
-    <input type="text" id="search-box" placeholder="目的地を検索（例：東京タワー）" autocomplete="off" />
+    <input type="text" id="search-box" placeholder="目的地・住所を入力" autocomplete="off" />
     <div id="search-loader" class="hidden">
-      <span class="spinner"></span> 候補地を多言語で探索中...
+      <span class="spinner"></span> 候補地を探索中...
+    </div>
+    <div id="suggestions-container" class="hidden">
+      <ul id="suggestions"></ul>
     </div>
   </div>
 
-  <div id="map-container">
-    <div id="map"></div>
-    <div id="route-info-container" class="hidden">
-      <ul id="route-info-list">
-        <li id="destination-name" style="font-weight:bold; color:#007bff;"></li>
-        <li id="route-distance"></li>
-        <li id="route-duration"></li>
-      </ul>
-      <button id="start-route-button">案内開始</button>
+  <div id="map"></div>
+
+  <div id="route-info-container" class="hidden">
+    <div id="route-info">
+      <strong id="destination-name"></strong><br>
+      <span id="route-distance"></span> / <span id="route-duration"></span>
     </div>
+    <button id="reset-btn" onclick="location.reload()">リセット</button>
   </div>
 
-  <div id="suggestions-container" class="hidden">
-    <ul id="suggestions"></ul>
-  </div>
-
-  <script type="module" src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

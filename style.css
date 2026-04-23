@@ -1,18 +1,26 @@
-body { margin: 0; padding: 0; font-family: sans-serif; height: 100dvh; overflow: hidden; background: #f0f0f0; }
-#map { width: 100%; height: 100%; }
+body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; overflow: hidden; }
+#map { width: 100%; height: 100%; position: absolute; }
 
-#search-container { position: absolute; top: 15px; left: 10px; z-index: 3000; width: calc(100% - 20px); }
-#search-box { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #007bff; font-size: 16px; outline: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+/* 設定モーダル */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.modal-content { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 400px; text-align: center; }
+.modal-content input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+.modal-content button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; }
 
-/* 読み込み中表示 */
-#search-loader { margin-top: 10px; padding: 12px; background: white; border-radius: 8px; font-size: 14px; color: #555; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-.spinner { width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+/* 検索エリア */
+#search-container { position: absolute; top: 15px; left: 10px; width: calc(100% - 20px); z-index: 1000; }
+#search-box { width: 100%; padding: 15px; border-radius: 12px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 16px; outline: none; box-sizing: border-box; }
+
+#search-loader { margin-top: 10px; background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.spinner { width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #007bff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 10px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-#suggestions-container { position: absolute; top: 65px; left: 10px; width: calc(100% - 20px); background: white; z-index: 2500; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); max-height: 50vh; overflow-y: auto; }
-#suggestions li { padding: 15px; border-bottom: 1px solid #f0f0f0; list-style: none; cursor: pointer; }
+#suggestions-container { background: white; border-radius: 12px; margin-top: 5px; max-height: 40vh; overflow-y: auto; box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
+#suggestions { list-style: none; padding: 0; margin: 0; }
+#suggestions li { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
 
-#route-info-container { position: absolute; bottom: 25px; left: 5%; width: 90%; background: white; padding: 20px; border-radius: 18px; z-index: 3500; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-#start-route-button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 10px; }
+/* ルート情報 */
+#route-info-container { position: absolute; bottom: 30px; left: 10px; width: calc(100% - 20px); background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+#reset-btn { padding: 10px 15px; background: #dc3545; color: white; border: none; border-radius: 8px; }
 
 .hidden { display: none !important; }
