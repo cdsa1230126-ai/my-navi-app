@@ -12,18 +12,17 @@
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3>初期設定</h3>
-      <p>APIキーをブラウザに保存します。<br>GitHubに公開されないので安全です。</p>
-      <input type="text" id="mapbox-token-input" placeholder="Mapbox Access Token (pk.ey...)" />
-      <input type="text" id="yahoo-id-input" placeholder="Yahoo! Application ID (dmVy...)" />
+      <p>APIキーをブラウザに安全に保存します。</p>
+      <input type="text" id="mapbox-token-input" placeholder="Mapbox Token (pk.ey...)" />
+      <input type="text" id="yahoo-id-input" placeholder="Yahoo! App ID (dmVy...)" />
       <button id="save-api-keys">設定を保存して開始</button>
-      <p class="modal-note">※キーを間違えた場合はブラウザの履歴を消去してください</p>
     </div>
   </div>
 
   <div id="search-container">
     <input type="text" id="search-box" placeholder="目的地を検索（例：東京タワー）" autocomplete="off" />
     <div id="search-loader" class="hidden">
-      <span class="spinner"></span> 候補地を探索中...
+      <span class="spinner"></span> 探索中...
     </div>
     <div id="suggestions-container" class="hidden">
       <ul id="suggestions"></ul>
@@ -37,7 +36,7 @@
       <strong id="destination-name"></strong><br>
       <span id="route-distance"></span> / <span id="route-duration"></span>
     </div>
-    <button id="reset-btn" onclick="localStorage.clear(); location.reload();">キーを解除</button>
+    <button id="reset-btn" onclick="localStorage.clear(); location.reload();">キー解除</button>
   </div>
 
   <script src="script.js"></script>

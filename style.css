@@ -1,28 +1,28 @@
-body { margin: 0; padding: 0; font-family: sans-serif; height: 100dvh; overflow: hidden; background: #f8f9fa; }
+body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; background: #f0f2f5; }
 #map { width: 100%; height: 100%; position: absolute; }
 
-/* ★設定画面(モーダル)のスタイル */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-.modal-content { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.modal-content h3 { margin-top: 0; color: #333; }
-.modal-content input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 14px; }
-.modal-content button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-.modal-content button:hover { background: #0056b3; }
-.modal-note { font-size: 11px; color: #999; margin-top: 15px; }
+/* 設定画面 */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.modal-content { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 380px; text-align: center; }
+.modal-content input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 10px; box-sizing: border-box; }
+.modal-content button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 10px; font-weight: bold; }
 
-/* 検索窓 */
+/* 検索エリア */
 #search-container { position: absolute; top: 15px; left: 10px; width: calc(100% - 20px); z-index: 1000; }
-#search-box { width: 100%; padding: 15px; border-radius: 12px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 16px; box-sizing: border-box; }
+#search-box { width: 100%; padding: 15px; border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-size: 16px; box-sizing: border-box; outline: none; }
 
-#search-loader { margin-top: 8px; background: white; padding: 10px; border-radius: 8px; font-size: 14px; display: flex; align-items: center; }
-.spinner { width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+#search-loader { margin-top: 8px; background: white; padding: 10px; border-radius: 10px; display: flex; align-items: center; font-size: 14px; }
+.spinner { width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-#suggestions-container { background: white; border-radius: 12px; margin-top: 5px; max-height: 40vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+/* Yahoo!検索結果リスト */
+#suggestions-container { background: white; border-radius: 15px; margin-top: 8px; max-height: 50vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
 #suggestions { list-style: none; padding: 0; margin: 0; }
-#suggestions li { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+#suggestions li { padding: 18px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.2s; }
+#suggestions li:active { background: #f0f7ff; }
 
-#route-info-container { position: absolute; bottom: 20px; left: 10px; width: calc(100% - 20px); background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 1000; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
-#reset-btn { padding: 8px 12px; background: #eee; border: none; border-radius: 6px; font-size: 12px; }
+/* ルートパネル */
+#route-info-container { position: absolute; bottom: 25px; left: 10px; width: calc(100% - 20px); background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 25px rgba(0,0,0,0.25); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; z-index: 1000; }
+#reset-btn { background: #f8d7da; color: #721c24; border: none; padding: 10px; border-radius: 8px; font-size: 12px; }
 
 .hidden { display: none !important; }
