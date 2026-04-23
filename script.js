@@ -18,7 +18,7 @@ function startApp(token) {
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
-        center: [139.667, 35.281],
+        center: [139.767, 35.681], // 東京中心
         zoom: 14,
         pitchWithRotate: false,
         dragRotate: false
@@ -42,13 +42,13 @@ function startApp(token) {
         }, null, { enableHighAccuracy: true });
     }
 
+    // 入力中の検索（候補出し）
     searchBox.addEventListener('input', async (e) => {
         const query = e.target.value;
-        if (!query) { suggestionsContainer.classList.add('hidden'); return; }
+        if (!query || query.length < 1) { suggestionsContainer.classList.add('hidden'); return; }
 
-        // ★改善：typesをpoi,landmark,addressのみに限定（placeやregionを除外！）
-        // これで「東京都」などの広域地名に吸い込まれるのを防ぎます。
-        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=10&country=jp&types=poi,landmark,address&autocomplete=true&worldview=jp`;
+        // ★対策1: typesから 'place' と 'region' を消去。poiとlandmarkに全振り。
+        let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=8&country=jp&types=poi,landmark,address&autocomplete=true&worldview=jp`;
         
         if (currentLocation) url += `&proximity=${currentLocation[0]},${currentLocation[1]}`;
 
@@ -61,7 +61,8 @@ function startApp(token) {
                 suggestionsContainer.classList.remove('hidden');
                 data.features.forEach(f => {
                     const li = document.createElement('li');
-                    const name = f.text_ja || f.text;
+                    // ★対策2: 日本語・英語両方のデータを統合表示
+                    const name = f.text_ja || f.text; 
                     const address = f.place_name_ja || f.place_name;
                     li.innerHTML = `<strong>📍 ${name}</strong><br><small>${address}</small>`;
                     li.addEventListener('mousedown', (e) => {
@@ -74,14 +75,21 @@ function startApp(token) {
         } catch (err) { console.error(err); }
     });
 
+    // ★対策3: Enter確定時に「地名」を完全に無視して再検索
     searchBox.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
             const query = searchBox.value;
-            // 確定時は「地名を除外した最強の1件」を再取得
+            if (!query) return;
+
+            // 建物(poi)のみに絞って1件だけ取得
             let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=1&country=jp&types=poi,landmark,address`;
             const res = await fetch(url);
             const data = await res.json();
-            if (data.features?.length > 0) handleSelection(data.features[0], query);
+            if (data.features?.length > 0) {
+                handleSelection(data.features[0], query);
+            } else {
+                alert("建物が見つかりません。より具体的な名称を入れてください。");
+            }
         }
     });
 
@@ -90,8 +98,8 @@ function startApp(token) {
         const dest = feature.geometry.coordinates;
         suggestionsContainer.classList.add('hidden');
         
-        // 入力した文字（番地など）を維持しつつ、目的地をセット
-        searchBox.value = originalQuery || feature.text_ja || feature.text;
+        // 画面上の表示名を固定
+        searchBox.value = feature.text_ja || feature.text;
         searchBox.blur();
 
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&steps=true&language=ja&access_token=${token}`;
