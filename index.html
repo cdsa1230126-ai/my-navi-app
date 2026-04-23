@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>多言語ハイブリッドナビ - 検索強化版</title>
+  <title>究極ナビ - 修正版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -11,14 +11,14 @@
 <body>
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h3>初期設定</h3>
-      <input type="text" id="api-key-input" placeholder="Mapbox Tokenを入力" />
-      <button id="save-api-key">開始する</button>
+      <h3>APIキー設定</h3>
+      <input type="text" id="api-key-input" placeholder="pk.ey..." />
+      <button id="save-api-key">設定を保存</button>
     </div>
   </div>
 
   <div id="search-container">
-    <input type="text" id="search-box" placeholder="場所・建物を入力" />
+    <input type="text" id="search-box" placeholder="目的地を検索（例：東京タワー）" autocomplete="off" />
     <div id="search-loader" class="hidden">
       <span class="spinner"></span> 候補地を多言語で探索中...
     </div>
@@ -28,7 +28,7 @@
     <div id="map"></div>
     <div id="route-info-container" class="hidden">
       <ul id="route-info-list">
-        <li id="destination-name"></li>
+        <li id="destination-name" style="font-weight:bold; color:#007bff;"></li>
         <li id="route-distance"></li>
         <li id="route-duration"></li>
       </ul>
