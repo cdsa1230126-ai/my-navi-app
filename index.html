@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>究極ナビマップ - BYOK版</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="api-config-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3>Mapbox API設定</h3>
+      <p>利用には個人のアクセストークンが必要です。</p>
+      <input type="text" id="api-key-input" placeholder="pk.ey..." />
+      <button id="save-api-key">設定を保存して開始</button>
+      <p class="small-text">
+        <a href="https://account.mapbox.com/" target="_blank">Mapboxでトークンを取得</a>
+      </p>
+    </div>
+  </div>
+
+  <div id="instruction-banner" class="hidden">
+    <div id="next-step-icon">➔</div>
+    <div id="next-step-text">案内を開始します</div>
+  </div>
+
+  <div id="search-container">
+    <input type="text" id="search-box" placeholder="目的地を検索" readonly /> 
+  </div>
+
+  <div id="map-container">
+    <div id="map"></div>
+    <button id="follow-button" class="map-overlay-btn active">◎ 現在地を追従</button>
+    <button id="settings-button" class="map-overlay-btn" style="top: 70px;">⚙ API再設定</button>
+    
+    <div id="route-info-container" class="hidden">
+      <ul id="route-info-list">
+        <li id="destination-name"></li>
+        <li id="route-distance"></li>
+        <li id="route-duration"></li>
+      </ul>
+      <button id="start-route-button" class="hidden">案内開始</button>
+    </div>
+  </div>
+
+  <div id="suggestions-container" class="hidden">
+    <ul id="suggestions"></ul>
+  </div>
+
+  <div id="keyboard-area">
+      <div id="keyboard-kana" class="custom-keyboard">
+          <button class="key-flick" data-key="あ">あ</button><button class="key-flick" data-key="い">い</button><button class="key-flick" data-key="う">う</button><button class="key-flick" data-key="え">え</button><button class="key-flick" data-key="お">お</button>
+          <button class="key-flick" data-key="か">か</button><button class="key-flick" data-key="き">き</button><button class="key-flick" data-key="く">く</button><button class="key-flick" data-key="け">け</button><button class="key-flick" data-key="こ">こ</button>
+          <button class="key-flick" data-key="さ">さ</button><button class="key-flick" data-key="し">し</button><button class="key-flick" data-key="す">す</button><button class="key-flick" data-key="せ">せ</button><button class="key-flick" data-key="そ">そ</button>
+          <button class="key-flick" data-key="た">た</button><button class="key-flick" data-key="ち">ち</button><button class="key-flick" data-key="つ">つ</button><button class="key-flick" data-key="て">て</button><button class="key-flick" data-key="と">と</button>
+          <button class="key-flick" data-key="な">な</button><button class="key-flick" data-key="に">に</button><button class="key-flick" data-key="ぬ">ぬ</button><button class="key-flick" data-key="ね">ね</button><button class="key-flick" data-key="の">の</button>
+          <button class="key-flick" data-key="は">は</button><button class="key-flick" data-key="ひ">ひ</button><button class="key-flick" data-key="ふ">ふ</button><button class="key-flick" data-key="へ">へ</button><button class="key-flick" data-key="ほ">ほ</button>
+          <button class="key-flick" data-key="ま">ま</button><button class="key-flick" data-key="み">み</button><button class="key-flick" data-key="む">む</button><button class="key-flick" data-key="め">め</button><button class="key-flick" data-key="も">も</button>
+          <button class="key-flick" data-key="や">や</button><button class="key-flick" data-key="ゆ">ゆ</button><button class="key-flick" data-key="よ">よ</button><button class="key-flick" data-key="ら">ら</button><button class="key-flick" data-key="り">り</button>
+          <button class="key-flick" data-key="る">る</button><button class="key-flick" data-key="れ">れ</button><button class="key-flick" data-key="ろ">ろ</button><button class="key-flick" data-key="わ">わ</button><button class="key-flick" data-key="ん">ん</button>
+          <button class="key-flick" data-key="ー">ー</button><button class="key-flick" data-key="、">、</button><button class="key-flick" data-key="。">。</button><button class="key-flick" data-key="！">！</button><button class="key-flick" data-key="？">？</button>
+      </div>
+      <div id="keyboard-romaji" class="custom-keyboard hidden">
+          <button class="key-flick" data-key="A">A</button><button class="key-flick" data-key="B">B</button><button class="key-flick" data-key="C">C</button><button class="key-flick" data-key="D">D</button><button class="key-flick" data-key="E">E</button>
+          <button class="key-flick" data-key="F">F</button><button class="key-flick" data-key="G">G</button><button class="key-flick" data-key="H">H</button><button class="key-flick" data-key="I">I</button><button class="key-flick" data-key="J">J</button>
+          <button class="key-flick" data-key="K">K</button><button class="key-flick" data-key="L">L</button><button class="key-flick" data-key="M">M</button><button class="key-flick" data-key="N">N</button><button class="key-flick" data-key="O">O</button>
+          <button class="key-flick" data-key="P">P</button><button class="key-flick" data-key="Q">Q</button><button class="key-flick" data-key="R">R</button><button class="key-flick" data-key="S">S</button><button class="key-flick" data-key="T">T</button>
+          <button class="key-flick" data-key="U">U</button><button class="key-flick" data-key="V">V</button><button class="key-flick" data-key="W">W</button><button class="key-flick" data-key="X">X</button><button class="key-flick" data-key="Y">Y</button>
+          <button class="key-flick" data-key="Z">Z</button><button class="key-flick" data-key=" ">Space</button><button class="key-flick" data-key="-">-</button><button class="key-flick" data-key=".">.</button><button class="key-flick" data-key=",">,</button>
+      </div>
+      <div id="keyboard-controls">
+          <button class="special-key mode-toggle" data-key="toggle">あ / ABC</button>
+          <button class="special-key" data-key="small">小文字</button>
+          <button class="special-key" data-key="daku">濁点</button>
+          <button class="special-key delete-key" data-key="del">消去</button>
+          <button class="special-key search-execute-key" data-key="search">検索</button>
+      </div>
+  </div>
+
+  <div id="guidance-message" class="guidance-hidden"></div>
+  <script type="module" src="script.js"></script>
+</body>
+</html>
