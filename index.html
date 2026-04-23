@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>究極ナビマップ - 標準キーボード版</title>
+  <title>究極ナビマップ - 国内専用版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -15,9 +15,6 @@
       <p>個人のアクセストークンを入力してください。</p>
       <input type="text" id="api-key-input" placeholder="pk.ey..." />
       <button id="save-api-key">設定を保存して開始</button>
-      <p class="small-text">
-        <a href="https://account.mapbox.com/" target="_blank">トークン取得はこちら</a>
-      </p>
     </div>
   </div>
 
@@ -26,7 +23,7 @@
   </div>
 
   <div id="search-container">
-    <input type="text" id="search-box" placeholder="目的地を検索" /> 
+    <input type="text" id="search-box" placeholder="目的地を日本国内で検索" /> 
   </div>
 
   <div id="map-container">
@@ -49,7 +46,6 @@
   </div>
 
   <div id="guidance-message" class="guidance-hidden"></div>
-
   <script type="module" src="script.js"></script>
 </body>
 </html>
