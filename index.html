@@ -12,7 +12,7 @@
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3>Mapbox API設定</h3>
-      <p>利用には個人のアクセストークンが必要です。</p>
+      <p>個人のアクセストークンを入力してください。</p>
       <input type="text" id="api-key-input" placeholder="pk.ey..." />
       <button id="save-api-key">設定を保存して開始</button>
       <p class="small-text">
@@ -33,7 +33,7 @@
   <div id="map-container">
     <div id="map"></div>
     <button id="follow-button" class="map-overlay-btn active">◎ 現在地を追従</button>
-    <button id="settings-button" class="map-overlay-btn" style="top: 70px;">⚙ API再設定</button>
+    <button id="settings-button" class="map-overlay-btn settings-btn">⚙ API再設定</button>
     
     <div id="route-info-container" class="hidden">
       <ul id="route-info-list">
@@ -75,7 +75,7 @@
           <button class="special-key" data-key="small">小文字</button>
           <button class="special-key" data-key="daku">濁点</button>
           <button class="special-key delete-key" data-key="del">消去</button>
-          <button class="special-key search-execute-key" data-key="search">検索</button>
+          <button class="special-key search-execute-key" data-key="search">決定</button>
       </div>
   </div>
 

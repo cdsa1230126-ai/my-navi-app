@@ -5,7 +5,7 @@ const apiKeyInput = document.getElementById('api-key-input');
 const saveBtn = document.getElementById('save-api-key');
 const settingsBtn = document.getElementById('settings-button');
 
-// 1. 保存されたトークンを確認
+// 保存されたトークンを確認
 let savedToken = localStorage.getItem('mapbox_user_token');
 
 if (!savedToken) {
@@ -33,7 +33,6 @@ settingsBtn.addEventListener('click', () => {
     }
 });
 
-// アプリのメインロジック
 function startApp(token) {
     mapboxgl.accessToken = token;
 
@@ -61,14 +60,6 @@ function startApp(token) {
     let isFollowing = true;
     let currentRouteSteps = [];
     let lastSpokenInstruction = "";
-    let searchTimeout = null;
-
-    // 音声初期化
-    function enableAudio() {
-        window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-        window.removeEventListener('touchstart', enableAudio);
-    }
-    window.addEventListener('touchstart', enableAudio);
 
     function speak(text) {
         if (!text || text === lastSpokenInstruction) return;
@@ -118,6 +109,7 @@ function startApp(token) {
 
     searchBox.addEventListener('click', () => document.body.classList.add('keyboard-active'));
 
+    let searchTimeout;
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value;
         clearTimeout(searchTimeout);
@@ -144,6 +136,7 @@ function startApp(token) {
         suggestionsContainer.classList.add('hidden');
         searchBox.value = feature.text;
         document.body.classList.remove('keyboard-active');
+
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${dest[0]},${dest[1]}?geometries=geojson&overview=full&steps=true&language=ja&access_token=${token}`;
         const res = await fetch(url);
         const data = await res.json();
@@ -156,7 +149,6 @@ function startApp(token) {
         
         if (destinationMarker) destinationMarker.remove();
         destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(dest).addTo(map);
-        map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, currentLocation).extend(dest), { padding: 80 });
 
         document.getElementById('destination-name').textContent = `目的地: ${feature.text}`;
         document.getElementById('route-distance').textContent = `距離: ${(route.distance / 1000).toFixed(1)}km`;
@@ -178,7 +170,7 @@ function startApp(token) {
         if (currentRouteSteps.length === 0) return;
         if (getDistance(loc, currentRouteSteps[0].maneuver.location) < 30) {
             currentRouteSteps.shift();
-            const msg = currentRouteSteps.length > 0 ? currentRouteSteps[0].maneuver.instruction : "目的地に到着";
+            const msg = currentRouteSteps.length > 0 ? currentRouteSteps[0].maneuver.instruction : "到着しました";
             nextStepText.textContent = msg;
             speak(msg);
         }

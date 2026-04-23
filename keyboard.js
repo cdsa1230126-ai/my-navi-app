@@ -29,7 +29,7 @@ export function initKeyboard(searchBox, notify) {
         } else if (key === 'small') {
             const last = searchBox.value.slice(-1);
             if (SMALL_MAP[last]) searchBox.value = searchBox.value.slice(0,-1) + SMALL_MAP[last];
-        } else if (key) {
+        } else {
             searchBox.value += key;
         }
         searchBox.dispatchEvent(new Event('input'));

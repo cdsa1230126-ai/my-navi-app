@@ -5,44 +5,48 @@ body {
 #map-container { position: relative; width: 100%; height: 100dvh; }
 #map { width: 100%; height: 100%; }
 
-/* API入力モーダル */
+/* モーダル */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.85); z-index: 9999;
     display: flex; align-items: center; justify-content: center;
 }
 .modal-content {
-    background: white; padding: 30px; border-radius: 20px; width: 80%; max-width: 350px; text-align: center;
+    background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center;
 }
 .modal-content input {
-    width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;
+    width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px;
 }
 #save-api-key {
     width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold;
 }
 
-/* 検索・案内UI */
-#search-container { position: absolute; top: 15px; left: 10px; z-index: 3000; width: calc(100% - 120px); }
+/* UIパーツ */
+#search-container { position: absolute; top: 15px; left: 10px; z-index: 3000; width: calc(100% - 130px); }
 #search-box { 
     width: 100%; padding: 12px; border-radius: 10px; border: 2px solid #007bff; 
-    font-size: 16px; background: white; outline: none;
+    font-size: 16px; background: white; outline: none; box-sizing: border-box;
 }
+
 .map-overlay-btn { 
-    position: absolute; top: 15px; right: 10px; z-index: 3000; 
-    padding: 12px; background: white; border: 2px solid #ccc; border-radius: 10px; font-size: 12px; font-weight: bold;
+    position: absolute; right: 10px; z-index: 3000; 
+    padding: 10px; background: white; border: 2px solid #ccc; border-radius: 10px; font-size: 12px; font-weight: bold;
 }
-.map-overlay-btn.active { background: #007bff; color: white; }
+#follow-button { top: 15px; }
+.settings-btn { top: 70px; }
+.map-overlay-btn.active { background: #007bff; color: white; border-color: #0056b3; }
 
 #instruction-banner {
     position: absolute; top: 80px; left: 5%; width: 90%; background: #333; color: white;
     padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 10px; z-index: 2000;
 }
-#next-step-icon { background: #007bff; min-width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 
-#route-info-container { 
-    position: absolute; bottom: 20px; left: 10px; right: 10px; 
-    background: white; padding: 15px; border-radius: 15px; z-index: 1500; box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+#route-info-container {
+    position: absolute; bottom: 30px; left: 5%; width: 90%; background: white;
+    padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 3500;
 }
+#route-info-list { list-style: none; padding: 0; margin-bottom: 15px; }
+#route-info-list li { margin-bottom: 5px; font-weight: bold; color: #333; }
 #start-route-button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; }
 
 /* キーボード */
@@ -52,18 +56,19 @@ body {
 }
 body.keyboard-active #keyboard-area { bottom: 0; }
 .custom-keyboard { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 10px; }
-.key-flick { height: 45px; background: white; border: none; border-radius: 5px; font-size: 16px; }
+.key-flick { height: 45px; background: white; border: none; border-radius: 5px; font-size: 16px; box-shadow: 0 1px 0 #888; }
 #keyboard-controls { display: flex; gap: 5px; padding: 0 10px 10px; }
 .special-key { flex: 1; height: 45px; border: none; border-radius: 5px; background: #adb5bd; font-size: 11px; font-weight: bold; }
 .search-execute-key { background: #007bff; color: white; }
 
 #suggestions-container { 
-    position: absolute; top: 70px; left: 10px; width: calc(100% - 120px); 
+    position: absolute; top: 70px; left: 10px; width: calc(100% - 130px); 
     background: white; z-index: 2500; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 #suggestions li { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; list-style: none; }
-#guidance-message { 
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.8); color: white; padding: 15px 25px; border-radius: 30px; z-index: 5000; pointer-events: none;
-}
 .hidden, .guidance-hidden { display: none !important; }
+
+#guidance-message {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; z-index: 5000;
+}
