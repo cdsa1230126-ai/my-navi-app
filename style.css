@@ -1,33 +1,57 @@
-body { margin: 0; padding: 0; font-family: sans-serif; height: 100dvh; overflow: hidden; background: #f0f0f0; }
+:root {
+  --movi-blue: #007aff;
+  --movi-red: #ff4b4b;
+  --movi-bg: #f2f2f7;
+}
+
+body { margin: 0; padding: 0; font-family: "Hiragino Sans", sans-serif; height: 100dvh; background: var(--movi-bg); overflow: hidden; }
+
+/* 検索窓 - モビリンク風 */
+#search-container { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 2000; }
+.search-bar { 
+  background: white; border-radius: 10px; display: flex; align-items: center; padding: 12px 15px; 
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1); border: 1px solid #ddd;
+}
+.search-icon { color: #888; margin-right: 10px; }
+#search-box { border: none; outline: none; font-size: 16px; width: 100%; }
+
 #map { width: 100%; height: 100%; position: absolute; }
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-.modal-content { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center; }
-.modal-content input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-.modal-content button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; }
+/* ボトムパネル - モビリンクのレイアウトを意識 */
+#info-panel {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: white; border-radius: 20px 20px 0 0;
+  padding: 15px 20px 30px 20px; z-index: 3000;
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+}
+.panel-handle { width: 40px; height: 5px; background: #ddd; border-radius: 3px; margin: 0 auto 15px auto; }
 
-#search-container { position: absolute; top: 15px; left: 10px; width: calc(100% - 20px); z-index: 1000; }
-#search-box { width: 100%; padding: 15px; border-radius: 12px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 16px; box-sizing: border-box; }
+.panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+#destination-name { margin: 0; font-size: 18px; color: #333; max-width: 60%; }
+.route-quick-stats { text-align: right; font-weight: bold; color: #666; font-size: 14px; }
 
-#search-loader { margin-top: 10px; background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; font-size: 14px; }
-.spinner { width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.config-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.config-item label { display: block; font-size: 10px; color: #888; margin-bottom: 5px; }
+.config-item input { width: 100%; padding: 8px; border: 1px solid #eee; background: #f9f9f9; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
 
-#suggestions-container { background: white; border-radius: 12px; margin-top: 5px; max-height: 40vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-#suggestions { list-style: none; padding: 0; margin: 0; }
-#suggestions li { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+/* 逆算結果表示エリア */
+#departure-card { 
+  background: var(--movi-bg); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 20px;
+  border-left: 5px solid var(--movi-blue);
+}
+.dep-title { font-size: 12px; color: var(--movi-blue); font-weight: bold; }
+#calc-time { font-size: 32px; font-weight: 800; color: #333; margin: 5px 0; }
+.dep-note { font-size: 10px; color: #999; }
 
-#route-info-container { position: absolute; bottom: 0; left: 0; width: 100%; background: white; padding: 20px; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); z-index: 1000; box-sizing: border-box; }
-.panel-content { display: flex; flex-direction: column; gap: 10px; }
-.calc-section { background: #f8faff; padding: 10px; border-radius: 10px; }
-.input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-.input-row label { font-size: 12px; color: #666; }
-.input-row input { padding: 5px; border: 1px solid #ddd; border-radius: 4px; width: 80px; }
-#departure-result { text-align: center; font-weight: bold; color: #ff4500; font-size: 1.2em; border-top: 1px dashed #ccc; padding-top: 10px; }
-.stats-row { display: flex; justify-content: space-around; font-size: 14px; color: #333; }
-.button-row { display: flex; gap: 10px; }
-.button-row button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; }
-#close-btn { background: #eee; }
-#reset-btn { background: #666; color: white; }
+.panel-footer { display: flex; gap: 10px; }
+.btn-primary { flex: 2; background: var(--movi-blue); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 16px; }
+.btn-secondary { flex: 1; background: #eee; color: #666; border: none; padding: 15px; border-radius: 10px; }
 
 .hidden { display: none !important; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.modal-content { background: white; padding: 25px; border-radius: 20px; width: 80%; }
+.modal-content input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+.modal-content button { width: 100%; padding: 12px; background: var(--movi-blue); color: white; border: none; border-radius: 8px; margin-top: 10px; }
+
+#suggestions-container { background: white; border-radius: 10px; margin-top: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-height: 50vh; overflow-y: auto; }
+#suggestions li { padding: 15px; border-bottom: 1px solid #f0f0f0; }
