@@ -29,12 +29,12 @@ function startApp(mapboxToken, yahooId) {
     let currentLocation = null;
     let currentMarker = null;
     let destMarker = null;
-    let restMarkers = []; // 黄色のピンを管理する配列
+    let restMarkers = [];
     let isFirstLock = true;
     let displayMode = 'duration';
     let currentRouteData = null;
 
-    // 渋滞レイヤー
+    // 渋滞レイヤーの常時表示
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
@@ -46,7 +46,6 @@ function startApp(mapboxToken, yahooId) {
         });
     });
 
-    // 現在地追従
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
         if (!currentMarker) {
@@ -64,7 +63,7 @@ function startApp(mapboxToken, yahooId) {
         if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 });
     };
 
-    // Yahoo検索
+    // 検索処理
     const searchBox = document.getElementById('search-box');
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
@@ -93,7 +92,7 @@ function startApp(mapboxToken, yahooId) {
         });
     };
 
-    // ルート描画
+    // ルート描画 & 休憩ピン表示 (案内開始前)
     async function drawRoute(name, destCoords) {
         if (!currentLocation) return;
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mapboxToken}`;
@@ -111,42 +110,42 @@ function startApp(mapboxToken, yahooId) {
         map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 450, left: 50, right: 50}, duration: 1000 });
 
         updatePanelUI(name);
-        suggestRestAreas(currentRouteData);
+        suggestRestAreas(currentRouteData); // 案内開始前にピンを表示
     }
 
-    // --- インテリジェント休憩提案（黄色いピンを表示） ---
+    // 黄色の休憩ピン提案ロジック
     async function suggestRestAreas(route) {
-        // 古い休憩ピンを削除
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
-
         const count = parseInt(document.getElementById('rest-count').value) || 0;
-        if (count <= 0) return;
+        if (count <= 0 || !route) return;
 
         const coords = route.geometry.coordinates;
         for (let i = 1; i <= count; i++) {
-            const pt = coords[Math.floor((coords.length / (count + 1)) * i)];
-            const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=${encodeURIComponent('コンビニ サービスエリア')}&output=json&results=1&callback=restCb${i}`;
+            const targetIdx = Math.floor((coords.length / (count + 1)) * i);
+            const pt = coords[targetIdx];
             
-            window[`restCb${i}`] = (data) => {
-                if (data.Feature) {
+            // ユニークなコールバック名で衝突を防止
+            const cbName = `restCb_${i}_${Date.now()}`;
+            const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=${encodeURIComponent('コンビニ SA PA 道の駅')}&output=json&results=1&callback=${cbName}`;
+            
+            window[cbName] = (data) => {
+                if (data.Feature && data.Feature.length > 0) {
                     const spot = data.Feature[0];
                     const sc = spot.Geometry.Coordinates.split(',');
-                    
-                    // ★休憩地点に黄色のピンを立てる
-                    const m = new mapboxgl.Marker({ color: '#FFD700' }) // イエロー/ゴールド
+                    const m = new mapboxgl.Marker({ color: '#FFD700' }) // 黄色のピン
                         .setLngLat([parseFloat(sc[0]), parseFloat(sc[1])])
-                        .setPopup(new mapboxgl.Popup().setHTML(`<b>休憩候補 ${i}</b><br>${spot.Name}`))
+                        .setPopup(new mapboxgl.Popup().setHTML(`<b>休憩 ${i}</b><br>${spot.Name}`))
                         .addTo(map);
-                    
                     restMarkers.push(m);
                 }
+                delete window[cbName];
             };
             const s = document.createElement('script'); s.src = url; document.body.appendChild(s);
+            s.onload = () => s.remove();
         }
     }
 
-    // UI更新 & トグル
     function updatePanelUI(name) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
@@ -168,14 +167,19 @@ function startApp(mapboxToken, yahooId) {
             const arrT = document.getElementById('target-arrival-time').value;
             const rTime = parseInt(document.getElementById('rest-time').value) || 0;
             const rCnt = parseInt(document.getElementById('rest-count').value) || 0;
-            if (!arrT) return;
-            const t = new Date(); const [h, m] = arrT.split(':'); t.setHours(h, m, 0);
-            const dep = new Date(t.getTime() - (currentRouteData.duration * 1000) - (rTime * rCnt * 60 * 1000));
-            document.getElementById('calc-time').textContent = `${String(dep.getHours()).padStart(2,'0')}:${String(dep.getMinutes()).padStart(2,'0')}`;
-            document.getElementById('total-rest-info').textContent = `休憩合計: ${rTime * rCnt}分 (${rCnt}回)`;
-            document.getElementById('departure-card').classList.remove('hidden');
+            if (arrT) {
+                const t = new Date(); const [h, m] = arrT.split(':'); t.setHours(h, m, 0);
+                const dep = new Date(t.getTime() - (currentRouteData.duration * 1000) - (rTime * rCnt * 60 * 1000));
+                document.getElementById('calc-time').textContent = `${String(dep.getHours()).padStart(2,'0')}:${String(dep.getMinutes()).padStart(2,'0')}`;
+                document.getElementById('total-rest-info').textContent = `休憩合計: ${rTime * rCnt}分 (${rCnt}回)`;
+                document.getElementById('departure-card').classList.remove('hidden');
+            }
         };
-        document.querySelectorAll('.config-grid input').forEach(i => i.oninput = () => { calc(); suggestRestAreas(currentRouteData); });
+
+        // 設定変更時に即座に逆算とピンを更新
+        document.querySelectorAll('.config-grid input').forEach(input => {
+            input.oninput = () => { calc(); suggestRestAreas(currentRouteData); };
+        });
         calc();
     }
     document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');

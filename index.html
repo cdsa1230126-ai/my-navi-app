@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Movilink Style - 逆算ナビ【黄色ピンver】</title>
+  <title>Movilink Style - 逆算ナビ【休憩ピン確定版】</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -28,12 +28,10 @@
   </div>
 
   <div id="map"></div>
-
   <button id="recenter-btn" class="map-ctrl-btn">📍</button>
 
   <div id="info-panel" class="hidden">
     <div class="panel-handle"></div>
-    
     <div class="panel-header">
       <div class="title-group">
         <h2 id="destination-name">目的地</h2>
@@ -51,11 +49,11 @@
       </div>
       <div class="config-item">
         <label>休憩/回(分)</label>
-        <input type="number" id="rest-time" value="0" min="0" step="5">
+        <input type="number" id="rest-time" value="10" min="0" step="5">
       </div>
       <div class="config-item">
         <label>休憩回数</label>
-        <input type="number" id="rest-count" value="0" min="0">
+        <input type="number" id="rest-count" value="3" min="0">
       </div>
     </div>
 

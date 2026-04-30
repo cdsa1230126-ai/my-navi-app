@@ -7,24 +7,20 @@
 body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; background: var(--movi-bg); overflow: hidden; }
 #map { width: 100%; height: 100%; position: absolute; }
 
-/* 時間表示のトグル用 */
 .stat-highlight { 
   font-size: 26px; color: var(--movi-blue); font-weight: 800; cursor: pointer; 
-  padding: 5px 10px; border-radius: 8px; background: rgba(0,122,255,0.05);
+  padding: 5px 10px; border-radius: 8px; background: rgba(0,122,255,0.1);
 }
 
-/* 地図操作ボタン */
 .map-ctrl-btn {
   position: absolute; right: 16px; bottom: 120px; width: 54px; height: 54px; border-radius: 27px;
   background: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 24px; z-index: 1500;
 }
 
-/* 検索バー */
 #search-container { position: absolute; top: 15px; left: 10px; right: 10px; z-index: 2000; }
 .search-bar { background: white; border-radius: 14px; display: flex; align-items: center; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
 #search-box { border: none; outline: none; font-size: 16px; width: 100%; margin-left: 10px; }
 
-/* パネル */
 #info-panel {
   position: absolute; bottom: 0; left: 0; right: 0; background: var(--movi-card); 
   border-radius: 24px 24px 0 0; padding: 12px 20px 30px 20px; z-index: 3000;
@@ -40,9 +36,9 @@ body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 10
 #departure-card { background: #f0f7ff; border-radius: 18px; padding: 15px; text-align: center; margin-bottom: 15px; border: 1px solid #cce4ff; }
 #calc-time { font-size: 44px; font-weight: 900; color: #1c1c1e; margin: 5px 0; }
 
-.panel-footer { display: flex; gap: 12px; }
 .btn-primary { flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: bold; }
 .btn-secondary { flex: 1; background: #f2f2f7; color: #48484a; border: none; padding: 16px; border-radius: 14px; }
+.panel-footer { display: flex; gap: 12px; }
 
 #suggestions-container { background: white; border-radius: 14px; margin-top: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-height: 40vh; overflow-y: auto; }
 #suggestions li { padding: 16px; border-bottom: 1px solid #f2f2f7; list-style: none; }
