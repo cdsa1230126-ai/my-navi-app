@@ -29,12 +29,12 @@ function startApp(mapboxToken, yahooId) {
     let currentLocation = null;
     let currentMarker = null;
     let destMarker = null;
-    let restMarkers = [];
+    let restMarkers = []; // 黄色のピンを管理する配列
     let isFirstLock = true;
-    let displayMode = 'duration'; // 'duration' or 'arrival'
+    let displayMode = 'duration';
     let currentRouteData = null;
 
-    // --- 渋滞レイヤーの追加 ---
+    // 渋滞レイヤー
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
@@ -46,7 +46,7 @@ function startApp(mapboxToken, yahooId) {
         });
     });
 
-    // --- 現在地取得 ---
+    // 現在地追従
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
         if (!currentMarker) {
@@ -64,7 +64,7 @@ function startApp(mapboxToken, yahooId) {
         if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 });
     };
 
-    // --- Yahoo検索 ---
+    // Yahoo検索
     const searchBox = document.getElementById('search-box');
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
@@ -93,7 +93,7 @@ function startApp(mapboxToken, yahooId) {
         });
     };
 
-    // --- ルート描画 & 休憩提案 ---
+    // ルート描画
     async function drawRoute(name, destCoords) {
         if (!currentLocation) return;
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mapboxToken}`;
@@ -114,10 +114,12 @@ function startApp(mapboxToken, yahooId) {
         suggestRestAreas(currentRouteData);
     }
 
-    // --- インテリジェント休憩提案 ---
+    // --- インテリジェント休憩提案（黄色いピンを表示） ---
     async function suggestRestAreas(route) {
+        // 古い休憩ピンを削除
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
+
         const count = parseInt(document.getElementById('rest-count').value) || 0;
         if (count <= 0) return;
 
@@ -130,8 +132,13 @@ function startApp(mapboxToken, yahooId) {
                 if (data.Feature) {
                     const spot = data.Feature[0];
                     const sc = spot.Geometry.Coordinates.split(',');
-                    const el = document.createElement('div'); el.className = 'rest-marker';
-                    const m = new mapboxgl.Marker(el).setLngLat([parseFloat(sc[0]), parseFloat(sc[1])]).setPopup(new mapboxgl.Popup().setHTML(spot.Name)).addTo(map);
+                    
+                    // ★休憩地点に黄色のピンを立てる
+                    const m = new mapboxgl.Marker({ color: '#FFD700' }) // イエロー/ゴールド
+                        .setLngLat([parseFloat(sc[0]), parseFloat(sc[1])])
+                        .setPopup(new mapboxgl.Popup().setHTML(`<b>休憩候補 ${i}</b><br>${spot.Name}`))
+                        .addTo(map);
+                    
                     restMarkers.push(m);
                 }
             };
@@ -139,7 +146,7 @@ function startApp(mapboxToken, yahooId) {
         }
     }
 
-    // --- UI更新 & 到着/所要時間トグル ---
+    // UI更新 & トグル
     function updatePanelUI(name) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
