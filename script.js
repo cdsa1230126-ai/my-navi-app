@@ -31,6 +31,7 @@ function startApp(mbToken, yhId) {
     let currentLocation = null;
     let currentPosMarker = null;
     let destinationMarker = null;
+    let isFirstLocation = true; // ★初回だけ中央に移動するためのフラグ
 
     // --- 現在地取得ロジック ---
     if (!navigator.geolocation) {
@@ -43,12 +44,24 @@ function startApp(mbToken, yhId) {
                 statusEl.textContent = "✅ 現在地を取得済み";
                 statusEl.style.color = "#007bff";
                 
+                // 現在地ピンの表示・更新
                 if (!currentPosMarker) {
                     currentPosMarker = new mapboxgl.Marker({ color: '#007bff' })
                         .setLngLat(currentLocation)
                         .addTo(map);
                 } else {
                     currentPosMarker.setLngLat(currentLocation);
+                }
+
+                // ★現在地を画面中央に表示する
+                // 初回取得時、または移動した時に中央に寄せたい場合に使用
+                if (isFirstLocation) {
+                    map.flyTo({
+                        center: currentLocation,
+                        zoom: 15, // 現在地が見やすいように少しズーム
+                        essential: true
+                    });
+                    isFirstLocation = false; // 2回目以降は自動で動かさない（ユーザーの操作を邪魔しないため）
                 }
             },
             e => {
@@ -130,6 +143,8 @@ function startApp(mbToken, yhId) {
 
             if (destinationMarker) destinationMarker.remove();
             destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
+            
+            // ルート全体が見えるように調整（ここは中央寄せではなく全体表示）
             map.fitBounds(new mapboxgl.LngLatBounds(startPoint, destCoords), { padding: 80 });
 
             document.getElementById('info-panel').classList.remove('hidden');
