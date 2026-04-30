@@ -1,23 +1,21 @@
-body { margin: 0; padding: 0; font-family: sans-serif; height: 100dvh; overflow: hidden; }
+body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; overflow: hidden; background: #f4f4f4; }
 #map { width: 100%; height: 100%; position: absolute; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-.modal-content { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center; }
+.modal-content { background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 320px; text-align: center; }
 .modal-content input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
 .modal-content button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; }
 
 #search-container { position: absolute; top: 15px; left: 10px; width: calc(100% - 20px); z-index: 1000; }
 #search-box { width: 100%; padding: 15px; border-radius: 12px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 16px; box-sizing: border-box; }
 
-#search-loader { margin-top: 10px; background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; font-size: 14px; }
-.spinner { width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-#suggestions-container { background: white; border-radius: 12px; margin-top: 5px; max-height: 50vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+#suggestions-container { background: white; border-radius: 12px; margin-top: 5px; max-height: 40vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
 #suggestions { list-style: none; padding: 0; margin: 0; }
-#suggestions li { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+#suggestions li { padding: 15px; border-bottom: 1px solid #eee; }
 
-#route-info-container { position: absolute; bottom: 20px; left: 10px; width: calc(100% - 20px); background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 1000; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
-#reset-btn { padding: 8px; background: #eee; border-radius: 6px; border: none; font-size: 11px; }
+#info-panel { position: absolute; bottom: 0; left: 0; width: 100%; background: white; padding: 20px; padding-bottom: 30px; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); z-index: 1001; box-sizing: border-box; }
+#info-panel h2 { margin: 0 0 15px 0; font-size: 1.2em; color: #333; }
 
 .hidden { display: none !important; }
+.spinner { width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
