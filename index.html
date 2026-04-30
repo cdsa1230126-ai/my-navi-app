@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Movilink Style - 逆算ナビ</title>
+  <title>Movilink Style - 完全版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -22,11 +22,10 @@
   <div id="search-container">
     <div class="search-bar">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-box" placeholder="施設名・住所・電話番号を入力" autocomplete="off" />
+      <input type="text" id="search-box" placeholder="目的地を検索" autocomplete="off" />
+      <div id="search-loader" class="hidden"><span class="spinner"></span></div>
     </div>
-    <div id="suggestions-container" class="hidden">
-      <ul id="suggestions"></ul>
-    </div>
+    <div id="suggestions-container" class="hidden"><ul id="suggestions"></ul></div>
   </div>
 
   <div id="map"></div>
@@ -37,34 +36,39 @@
     <div class="panel-header">
       <h2 id="destination-name">目的地</h2>
       <div class="route-quick-stats">
-        <span id="route-duration">--分</span>
-        <span id="route-distance">--km</span>
+        <div id="route-duration" class="stat-main">--分</div>
+        <div id="route-distance">--km</div>
       </div>
     </div>
 
-    <div class="config-grid">
-      <div class="config-item">
-        <label>到着希望時刻</label>
-        <input type="time" id="target-arrival-time">
-      </div>
-      <div class="config-item">
-        <label>休憩合計(分)</label>
-        <input type="number" id="rest-time" value="0" min="0" step="5">
-      </div>
-      <div class="config-item">
-        <label>休憩回数(回)</label>
-        <input type="number" id="rest-count" value="0" min="0">
+    <div class="config-section">
+      <div class="config-grid">
+        <div class="config-item">
+          <label>到着希望</label>
+          <input type="time" id="target-arrival-time">
+        </div>
+        <div class="config-item">
+          <label>休憩時間/回(分)</label>
+          <input type="number" id="rest-time" value="0" min="0" step="5">
+        </div>
+        <div class="config-item">
+          <label>休憩回数</label>
+          <input type="number" id="rest-count" value="0" min="0">
+        </div>
       </div>
     </div>
 
     <div id="departure-card" class="hidden">
-      <div class="dep-title">推奨出発時刻</div>
-      <div id="calc-time">--:--</div>
-      <div class="dep-note">※設定した休憩時間を考慮しています</div>
+      <div class="dep-inner">
+        <div class="dep-title">推奨出発時刻</div>
+        <div id="calc-time">--:--</div>
+        <div id="total-rest-info" class="dep-note">休憩合計: 0分</div>
+      </div>
     </div>
 
     <div class="panel-footer">
       <button id="close-panel" class="btn-secondary">閉じる</button>
+      <button id="reset-app" class="btn-reset" onclick="localStorage.clear(); location.reload();">リセット</button>
       <button id="start-nav" class="btn-primary">案内開始</button>
     </div>
   </div>
