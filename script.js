@@ -33,17 +33,18 @@ function startApp(mbToken, yhId) {
     let destinationMarker = null;
     let isFirstLocation = true;
 
-    // --- 現在地取得ロジック ---
+    // --- 現在地取得ロジック（最強安定版） ---
     if (!navigator.geolocation) {
-        statusEl.textContent = "❌ 位置情報非対応";
-        statusEl.style.color = "red";
+        if (statusEl) statusEl.textContent = "❌ 位置情報非対応";
     } else {
         navigator.geolocation.watchPosition(
             p => {
                 currentLocation = [p.coords.longitude, p.coords.latitude];
                 
-                // ★【ここを修正】ピンが立ったらステータス表示を消す
-                statusEl.style.display = 'none'; 
+                // ★ピンが立ったら、ステータス表示を「物理的に削除」して二度と出さない
+                if (statusEl && statusEl.parentNode) {
+                    statusEl.remove(); 
+                }
                 
                 if (!currentPosMarker) {
                     currentPosMarker = new mapboxgl.Marker({ color: '#007bff' })
@@ -54,29 +55,24 @@ function startApp(mbToken, yhId) {
                 }
 
                 if (isFirstLocation) {
-                    map.flyTo({
-                        center: currentLocation,
-                        zoom: 15,
-                        essential: true
-                    });
+                    map.flyTo({ center: currentLocation, zoom: 15, essential: true });
                     isFirstLocation = false;
                 }
             },
             e => {
-                // まだ一度も取得できていない時だけエラーを表示
-                if (!currentLocation) {
-                    statusEl.style.display = 'inline-block'; // エラー時は再表示
+                // まだ一度も取れていない時だけエラー表示
+                if (!currentLocation && statusEl) {
                     let msg = "❌ 現在地を探しています...";
                     if (e.code === 1) msg = "❌ 位置許可をオンにしてください";
                     statusEl.textContent = msg;
                     statusEl.style.color = "red";
                 }
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
         );
     }
 
-    // --- Yahoo検索以降のコードは変更なし ---
+    // --- 検索ロジック ---
     const searchBox = document.getElementById('search-box');
     const searchLoader = document.getElementById('search-loader');
     const suggestionsContainer = document.getElementById('suggestions-container');
@@ -122,6 +118,7 @@ function startApp(mbToken, yhId) {
         });
     };
 
+    // --- ルート描画・逆算 ---
     async function drawRoute(name, destCoords) {
         let startPoint = currentLocation || [map.getCenter().lng, map.getCenter().lat];
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${startPoint[0]},${startPoint[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;

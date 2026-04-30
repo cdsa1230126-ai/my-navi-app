@@ -10,7 +10,6 @@
 </head>
 <body>
 
-  <!-- 目的地・逆算パネル -->
   <div id="info-panel" class="hidden">
     <h2 id="destination-name">目的地</h2>
     <div style="background: #f0f7ff; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
@@ -35,7 +34,6 @@
     </div>
   </div>
 
-  <!-- API設定モーダル -->
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3>初期設定</h3>
@@ -46,11 +44,10 @@
     </div>
   </div>
 
-  <!-- 検索コンテナ -->
   <div id="search-container">
-    <input type="text" id="search-box" placeholder="目的地を検索（例：東京タワー）" autocomplete="off" />
+    <input type="text" id="search-box" placeholder="目的地を検索" autocomplete="off" />
     
-    <div id="location-status">
+    <div id="location-status" style="margin-top: 5px; padding: 5px 10px; background: rgba(255,255,255,0.9); border-radius: 5px; font-size: 12px; color: #666; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
         📍 現在地を取得中...
     </div>
 
@@ -62,7 +59,6 @@
     </div>
   </div>
 
-  <!-- 地図 -->
   <div id="map"></div>
 
   <script src="script.js"></script>
