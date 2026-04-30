@@ -50,7 +50,6 @@ function startApp(mbToken, yhId) {
 
         timeout = setTimeout(() => {
             searchLoader.classList.remove('hidden');
-            // Yahoo! ローカル検索APIを使用（JSONP方式）
             const yahooUrl = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yhId}&query=${encodeURIComponent(query)}&output=json&callback=handleYahooResults`;
             const script = document.createElement('script');
             script.src = yahooUrl;
@@ -59,7 +58,6 @@ function startApp(mbToken, yhId) {
         }, 500);
     });
 
-    // ★検索結果の建物名をクリックした時の処理
     window.handleYahooResults = (data) => {
         searchLoader.classList.add('hidden');
         suggestionsList.innerHTML = '';
@@ -67,7 +65,6 @@ function startApp(mbToken, yhId) {
 
         suggestionsContainer.classList.remove('hidden');
         data.Feature.forEach(f => {
-            // Yahoo!の座標形式 "経度,緯度" を数値に変換
             const coords = f.Geometry.Coordinates.split(',');
             const lng = parseFloat(coords[0]);
             const lat = parseFloat(coords[1]);
@@ -75,11 +72,10 @@ function startApp(mbToken, yhId) {
             const li = document.createElement('li');
             li.innerHTML = `<strong>📍 ${f.Name}</strong><br><small>${f.Property.Address}</small>`;
             
-            // 建物名を目的地として確定
             li.onclick = () => {
                 searchBox.value = f.Name;
                 suggestionsContainer.classList.add('hidden');
-                drawRoute(f.Name, [lng, lat]); // Mapboxに座標を投げる
+                drawRoute(f.Name, [lng, lat]);
             };
             suggestionsList.appendChild(li);
         });
@@ -94,6 +90,7 @@ function startApp(mbToken, yhId) {
         const res = await fetch(url);
         const data = await res.json();
         const route = data.routes[0];
+        const travelTimeSec = route.duration; 
 
         // 地図にルートを描画
         if (map.getSource('route')) {
@@ -103,16 +100,52 @@ function startApp(mbToken, yhId) {
         map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
         map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
 
-        // 目的地マーカー
         if (destinationMarker) destinationMarker.remove();
         destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
         
         map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, destCoords), { padding: 80 });
 
-        // 情報パネル表示
+        // --- 逆算タイマー機能 ---
+        const infoPanel = document.getElementById('info-panel');
+        infoPanel.classList.remove('hidden');
+
         document.getElementById('destination-name').textContent = name;
         document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
-        document.getElementById('route-duration').textContent = `${Math.round(route.duration / 60)} 分`;
-        document.getElementById('route-info-container').classList.remove('hidden');
+        document.getElementById('route-duration').textContent = `${Math.round(travelTimeSec / 60)} 分`;
+
+        const updateDepartureTime = () => {
+            const arrivalInput = document.getElementById('target-arrival-time').value;
+            const restMin = parseInt(document.getElementById('rest-time').value) || 0;
+            const resultBox = document.getElementById('departure-result');
+            const calcDisplay = document.getElementById('calc-time');
+
+            if (!arrivalInput) return;
+
+            const [hours, minutes] = arrivalInput.split(':');
+            const arrivalDate = new Date();
+            arrivalDate.setHours(hours, minutes, 0);
+
+            // 逆算計算
+            const departureTimeMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
+            const departureDate = new Date(departureTimeMs);
+
+            const depH = String(departureDate.getHours()).padStart(2, '0');
+            const depM = String(departureDate.getMinutes()).padStart(2, '0');
+
+            calcDisplay.textContent = `${depH}:${depM}`;
+            resultBox.style.display = 'block';
+        };
+
+        // イベント登録
+        document.getElementById('target-arrival-time').onchange = updateDepartureTime;
+        document.getElementById('rest-time').oninput = updateDepartureTime;
+        
+        // 即時計算
+        updateDepartureTime();
     }
+
+    // パネルを閉じる処理
+    document.getElementById('close-panel').addEventListener('click', () => {
+        document.getElementById('info-panel').classList.add('hidden');
+    });
 }
