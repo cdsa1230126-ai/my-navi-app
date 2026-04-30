@@ -31,20 +31,21 @@ function startApp(mbToken, yhId) {
     let currentLocation = null;
     let currentPosMarker = null;
     let destinationMarker = null;
-    let isFirstLocation = true; // ★初回だけ中央に移動するためのフラグ
+    let isFirstLocation = true;
 
-    // --- 現在地取得ロジック ---
+    // --- 現在地取得ロジック（表示の確実性をアップ） ---
     if (!navigator.geolocation) {
-        statusEl.textContent = "❌ 位置情報非対応ブラウザです";
+        statusEl.textContent = "❌ 位置情報非対応";
         statusEl.style.color = "red";
     } else {
         navigator.geolocation.watchPosition(
             p => {
                 currentLocation = [p.coords.longitude, p.coords.latitude];
+                
+                // ★ピンが立ったら、即座に表示を「取得済み」にする
                 statusEl.textContent = "✅ 現在地を取得済み";
                 statusEl.style.color = "#007bff";
                 
-                // 現在地ピンの表示・更新
                 if (!currentPosMarker) {
                     currentPosMarker = new mapboxgl.Marker({ color: '#007bff' })
                         .setLngLat(currentLocation)
@@ -53,28 +54,29 @@ function startApp(mbToken, yhId) {
                     currentPosMarker.setLngLat(currentLocation);
                 }
 
-                // ★現在地を画面中央に表示する
-                // 初回取得時、または移動した時に中央に寄せたい場合に使用
                 if (isFirstLocation) {
                     map.flyTo({
                         center: currentLocation,
-                        zoom: 15, // 現在地が見やすいように少しズーム
+                        zoom: 15,
                         essential: true
                     });
-                    isFirstLocation = false; // 2回目以降は自動で動かさない（ユーザーの操作を邪魔しないため）
+                    isFirstLocation = false;
                 }
             },
             e => {
-                let msg = "❌ 位置情報を取得できません";
-                if (e.code === 1) msg = "❌ 位置情報の利用を許可してください";
-                statusEl.textContent = msg;
-                statusEl.style.color = "red";
+                // すでに一度でも取得できていれば（ピンがあれば）、エラー表示で上書きしない
+                if (!currentLocation) {
+                    let msg = "❌ 現在地を探しています...";
+                    if (e.code === 1) msg = "❌ 位置許可をオンにしてください";
+                    statusEl.textContent = msg;
+                    statusEl.style.color = "red";
+                }
             },
-            { enableHighAccuracy: true, timeout: 10000 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }
 
-    // --- Yahoo検索 ---
+    // --- Yahoo検索以降のコードは変更なし ---
     const searchBox = document.getElementById('search-box');
     const searchLoader = document.getElementById('search-loader');
     const suggestionsContainer = document.getElementById('suggestions-container');
@@ -109,10 +111,8 @@ function startApp(mbToken, yhId) {
             const coords = f.Geometry.Coordinates.split(',');
             const lng = parseFloat(coords[0]);
             const lat = parseFloat(coords[1]);
-
             const li = document.createElement('li');
             li.innerHTML = `<strong>📍 ${f.Name}</strong><br><small>${f.Property.Address}</small>`;
-            
             li.onclick = () => {
                 searchBox.value = f.Name;
                 suggestionsContainer.classList.add('hidden');
@@ -122,10 +122,8 @@ function startApp(mbToken, yhId) {
         });
     };
 
-    // --- ルート描画・逆算 ---
     async function drawRoute(name, destCoords) {
         let startPoint = currentLocation || [map.getCenter().lng, map.getCenter().lat];
-
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${startPoint[0]},${startPoint[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
         try {
@@ -143,8 +141,6 @@ function startApp(mbToken, yhId) {
 
             if (destinationMarker) destinationMarker.remove();
             destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
-            
-            // ルート全体が見えるように調整（ここは中央寄せではなく全体表示）
             map.fitBounds(new mapboxgl.LngLatBounds(startPoint, destCoords), { padding: 80 });
 
             document.getElementById('info-panel').classList.remove('hidden');
@@ -156,22 +152,18 @@ function startApp(mbToken, yhId) {
                 const arrivalInput = document.getElementById('target-arrival-time').value;
                 const restMin = parseInt(document.getElementById('rest-time').value) || 0;
                 if (!arrivalInput) return;
-
                 const [h, m] = arrivalInput.split(':');
                 const arrivalDate = new Date();
                 arrivalDate.setHours(h, m, 0);
-
                 const depMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
                 const d = new Date(depMs);
                 document.getElementById('calc-time').textContent = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                 document.getElementById('departure-result').style.display = 'block';
             };
-
             document.getElementById('target-arrival-time').onchange = updateDepartureTime;
             document.getElementById('rest-time').oninput = updateDepartureTime;
             updateDepartureTime();
         } catch (e) { console.error(e); }
     }
-
     document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
 }
