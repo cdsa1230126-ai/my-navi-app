@@ -24,74 +24,49 @@ function startApp(mapboxToken, yahooId) {
         style: 'mapbox://styles/mapbox/streets-v11',
         center: [139.767, 35.681],
         zoom: 14,
-        pitch: 0, // 最初は真上からの視点
-        bearing: 0
+        pitch: 0
     });
 
     let currentLocation = null;
     let currentMarker = null;
     let destMarker = null;
     let restMarkers = [];
-    let isFirstLock = true;
     let currentRouteData = null;
 
-    // --- 視点切り替えボタンの追加 ---
-    const viewBtn = document.createElement('button');
-    viewBtn.id = 'view-toggle-btn';
-    viewBtn.className = 'map-ctrl-btn';
-    viewBtn.style.bottom = '180px'; // 再表示ボタンの上
-    viewBtn.innerHTML = '2D';
-    document.body.appendChild(viewBtn);
-
-    viewBtn.onclick = () => {
+    // 視点切り替え
+    document.getElementById('view-toggle-btn').onclick = function() {
         const is3D = map.getPitch() > 0;
-        map.easeTo({
-            pitch: is3D ? 0 : 60,
-            duration: 500
-        });
-        viewBtn.innerHTML = is3D ? '2D' : '3D';
+        map.easeTo({ pitch: is3D ? 0 : 60, duration: 500 });
+        this.innerHTML = is3D ? '2D' : '3D';
     };
 
-    // 渋滞レイヤー
+    // 渋滞表示
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
             'id': 'traffic', 'type': 'line', 'source': 'mapbox-traffic', 'source-layer': 'traffic',
-            'paint': {
-                'line-width': 3,
-                'line-color': ['match', ['get', 'congestion'], 'low', '#4caf50', 'moderate', '#ffeb3b', 'heavy', '#f44336', 'severe', '#8b0000', '#4caf50']
-            }
+            'paint': { 'line-width': 3, 'line-color': ['match', ['get', 'congestion'], 'low', '#4caf50', 'moderate', '#ffeb3b', 'heavy', '#f44336', 'severe', '#8b0000', '#4caf50'] }
         });
     });
 
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
-        if (!currentMarker) {
-            currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
-        } else {
-            currentMarker.setLngLat(currentLocation);
-        }
-        if (isFirstLock) {
-            map.flyTo({ center: currentLocation, zoom: 15 });
-            isFirstLock = false;
-        }
+        if (!currentMarker) currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
+        else currentMarker.setLngLat(currentLocation);
     }, null, { enableHighAccuracy: true });
 
-    document.getElementById('recenter-btn').onclick = () => {
-        if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 });
-    };
+    document.getElementById('recenter-btn').onclick = () => { if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 }); };
 
-    // Yahoo検索処理
+    // 検索
     const searchBox = document.getElementById('search-box');
-    searchBox.addEventListener('input', (e) => {
-        const query = e.target.value.trim();
-        if (query.length < 2) return;
-        const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&query=${encodeURIComponent(query)}&output=json&callback=handleResults`;
-        const script = document.createElement('script');
-        script.src = url;
-        document.body.appendChild(script);
-        document.body.removeChild(script);
-    });
+    searchBox.oninput = (e) => {
+        const q = e.target.value.trim();
+        if (q.length < 2) return;
+        const s = document.createElement('script');
+        s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&query=${encodeURIComponent(q)}&output=json&callback=handleResults`;
+        document.body.appendChild(s);
+        s.onload = () => s.remove();
+    };
 
     window.handleResults = (data) => {
         const list = document.getElementById('suggestions');
@@ -112,8 +87,7 @@ function startApp(mapboxToken, yahooId) {
 
     async function drawRoute(name, destCoords) {
         if (!currentLocation) return;
-        const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mapboxToken}`;
-        const res = await fetch(url);
+        const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mapboxToken}`);
         const data = await res.json();
         currentRouteData = data.routes[0];
 
@@ -123,38 +97,30 @@ function startApp(mapboxToken, yahooId) {
 
         if (destMarker) destMarker.remove();
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
-
-        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 450, left: 50, right: 50}, duration: 1000 });
+        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 400, left: 50, right: 50} });
+        
         updatePanelUI(name);
     }
 
-    // 休憩ピン（黄色）の表示
+    // 休憩ピン表示
     async function showRestAreas() {
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
         const count = parseInt(document.getElementById('rest-count').value) || 0;
-        if (count <= 0 || !currentRouteData) return;
-
         const coords = currentRouteData.geometry.coordinates;
         for (let i = 1; i <= count; i++) {
             const pt = coords[Math.floor((coords.length / (count + 1)) * i)];
-            const cbName = `restCb_${i}_${Date.now()}`;
-            window[cbName] = (data) => {
-                if (data.Feature) {
-                    const spot = data.Feature[0];
-                    const sc = spot.Geometry.Coordinates.split(',');
-                    const m = new mapboxgl.Marker({ color: '#FFD700' }) // 黄色のピン
-                        .setLngLat([parseFloat(sc[0]), parseFloat(sc[1])])
-                        .setPopup(new mapboxgl.Popup().setHTML(`${spot.Name}`))
-                        .addTo(map);
+            const cb = `rest_${i}_${Date.now()}`;
+            window[cb] = (d) => {
+                if (d.Feature) {
+                    const sc = d.Feature[0].Geometry.Coordinates.split(',');
+                    const m = new mapboxgl.Marker({ color: '#FFD700' }).setLngLat([parseFloat(sc[0]), parseFloat(sc[1])]).addTo(map);
                     restMarkers.push(m);
                 }
-                delete window[cbName];
             };
             const s = document.createElement('script');
-            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cbName}`;
+            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cb}`;
             document.body.appendChild(s);
-            s.onload = () => s.remove();
         }
     }
 
@@ -175,29 +141,30 @@ function startApp(mapboxToken, yahooId) {
             document.getElementById('total-rest-info').textContent = `休憩合計: ${rTime * rCnt}分 (${rCnt}回)`;
             document.getElementById('departure-card').classList.remove('hidden');
         };
-        document.querySelectorAll('.config-grid input').forEach(input => input.oninput = calc);
+        document.querySelectorAll('.config-grid input').forEach(el => el.oninput = calc);
         calc();
-
-        // 案内開始ボタン
-        document.getElementById('start-nav').onclick = () => {
-            showRestAreas(); // 黄色のピンを表示
-            
-            // 上から覗く視点（ピッチ0）を維持してズーム
-            map.flyTo({
-                center: currentLocation,
-                zoom: 17,
-                pitch: 0, 
-                essential: true
-            });
-
-            document.getElementById('search-container').classList.add('hidden');
-            document.getElementById('start-nav').textContent = "案内中";
-            document.getElementById('start-nav').style.backgroundColor = "#4cd964";
-        };
     }
 
-    document.getElementById('close-panel').onclick = () => {
-        document.getElementById('info-panel').classList.add('hidden');
-        document.getElementById('search-container').classList.remove('hidden');
+    // 案内開始
+    document.getElementById('start-nav').onclick = () => {
+        showRestAreas();
+        map.flyTo({ center: currentLocation, zoom: 17, essential: true });
+        document.getElementById('pre-nav-content').classList.add('hidden');
+        document.getElementById('nav-active-content').classList.remove('hidden');
+        document.getElementById('search-container').style.transform = 'translateY(-100px)';
+        
+        const durMin = Math.round(currentRouteData.duration / 60);
+        document.getElementById('nav-remaining-time').textContent = `${durMin}分`;
+        const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
+        document.getElementById('nav-arrival-estimate').textContent = `${arr.getHours()}:${String(arr.getMinutes()).padStart(2,'0')} 到着予定`;
     };
+
+    document.getElementById('stop-nav').onclick = () => {
+        document.getElementById('pre-nav-content').classList.remove('hidden');
+        document.getElementById('nav-active-content').classList.add('hidden');
+        document.getElementById('search-container').style.transform = 'translateY(0)';
+        restMarkers.forEach(m => m.remove());
+    };
+
+    document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
 }
