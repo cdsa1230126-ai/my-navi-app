@@ -34,15 +34,26 @@ function startApp(mbToken, yhId) {
 
     let currentLocation = null;
     let destinationMarker = null;
+    let currentPosMarker = null; // ★現在地ピン用の変数
 
-    // 現在地取得（失敗してもエラーで止めない）
+    // 現在地取得とピンの表示
     navigator.geolocation.watchPosition(
         p => {
             currentLocation = [p.coords.longitude, p.coords.latitude];
             console.log("現在地を取得しました:", currentLocation);
+
+            // ★現在地に青いピンを指す（すでにある場合は位置を更新）
+            if (!currentPosMarker) {
+                currentPosMarker = new mapboxgl.Marker({ color: '#007bff' }) // 青色のピン
+                    .setLngLat(currentLocation)
+                    .setPopup(new mapboxgl.Popup().setHTML("現在地"))
+                    .addTo(map);
+            } else {
+                currentPosMarker.setLngLat(currentLocation);
+            }
         },
         e => {
-            console.warn("位置情報の取得に失敗しました。地図の中心を使用します。", e.message);
+            console.warn("位置情報の取得に失敗しました:", e.message);
         },
         { enableHighAccuracy: true }
     );
@@ -90,14 +101,12 @@ function startApp(mbToken, yhId) {
     };
 
     async function drawRoute(name, destCoords) {
-        // 現在地が取れていない場合は地図の中心を起点にする
         let startPoint = currentLocation;
         if (!startPoint) {
             const center = map.getCenter();
             startPoint = [center.lng, center.lat];
         }
 
-        // Mapbox Directions APIでルート取得 (交通量考慮プロファイルを使用)
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${startPoint[0]},${startPoint[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
         try {
@@ -112,7 +121,6 @@ function startApp(mbToken, yhId) {
             const route = data.routes[0];
             const travelTimeSec = route.duration; 
 
-            // 地図にルートを描画
             if (map.getSource('route')) {
                 map.removeLayer('route');
                 map.removeSource('route');
@@ -125,7 +133,6 @@ function startApp(mbToken, yhId) {
             
             map.fitBounds(new mapboxgl.LngLatBounds(startPoint, destCoords), { padding: 80 });
 
-            // --- 逆算タイマー機能 ---
             const infoPanel = document.getElementById('info-panel');
             infoPanel.classList.remove('hidden');
 
@@ -133,7 +140,6 @@ function startApp(mbToken, yhId) {
             document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
             document.getElementById('route-duration').textContent = `${Math.round(travelTimeSec / 60)} 分`;
 
-            // 逆算処理の定義
             const updateDepartureTime = () => {
                 const arrivalInput = document.getElementById('target-arrival-time').value;
                 const restMin = parseInt(document.getElementById('rest-time').value) || 0;
@@ -146,7 +152,6 @@ function startApp(mbToken, yhId) {
                 const arrivalDate = new Date();
                 arrivalDate.setHours(hours, minutes, 0);
 
-                // 逆算計算：到着希望時刻 - 走行時間(秒) - 休憩(ミリ秒)
                 const departureTimeMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
                 const departureDate = new Date(departureTimeMs);
 
@@ -157,20 +162,15 @@ function startApp(mbToken, yhId) {
                 resultBox.style.display = 'block';
             };
 
-            // 入力イベントの登録（目的地変更のたびに最新の走行時間で更新されるようにする）
             document.getElementById('target-arrival-time').onchange = updateDepartureTime;
             document.getElementById('rest-time').oninput = updateDepartureTime;
-            
-            // 初回計算
             updateDepartureTime();
 
         } catch (error) {
             console.error("ルート取得エラー:", error);
-            alert("ルートの取得に失敗しました。");
         }
     }
 
-    // パネルを閉じる処理
     document.getElementById('close-panel').onclick = () => {
         document.getElementById('info-panel').classList.add('hidden');
     };
