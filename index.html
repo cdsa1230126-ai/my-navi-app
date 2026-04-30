@@ -10,6 +10,7 @@
 </head>
 <body>
 
+  <!-- 目的地・逆算パネル -->
   <div id="info-panel" class="hidden">
     <h2 id="destination-name">目的地</h2>
     <div style="background: #f0f7ff; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
@@ -20,16 +21,21 @@
         <input type="number" id="rest-time" value="0" min="0" step="5" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
     </div>
     
-    <div id="departure-result" style="text-align: center; margin: 15px 0; padding: 10px; background: #fff0f0; border-radius: 8px; border: 2px border #ff4500; display: none;">
+    <div id="departure-result" style="text-align: center; margin: 15px 0; padding: 10px; background: #fff0f0; border-radius: 8px; border: 2px solid #ff4500; display: none;">
         <div style="font-size: 0.8em; color: #ff4500;">推奨出発時間</div>
         <div id="calc-time" style="font-size: 1.5em; font-weight: bold; color: #d00;">--:--</div>
     </div>
 
     <p>距離: <span id="route-distance">--</span></p>
     <p>所要時間: <span id="route-duration">--</span></p>
-    <button id="close-panel">閉じる</button>
-</div>
+    
+    <div style="display: flex; gap: 10px;">
+        <button id="close-panel" style="flex: 1;">閉じる</button>
+        <button id="reset-btn" style="flex: 1; background: #666;" onclick="localStorage.clear(); location.reload();">設定リセット</button>
+    </div>
+  </div>
 
+  <!-- API設定モーダル -->
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3>初期設定</h3>
@@ -40,25 +46,24 @@
     </div>
   </div>
 
+  <!-- 検索コンテナ -->
   <div id="search-container">
     <input type="text" id="search-box" placeholder="目的地を検索（例：東京タワー）" autocomplete="off" />
+    
+    <div id="location-status">
+        📍 現在地を取得中...
+    </div>
+
     <div id="search-loader" class="hidden">
-      <span class="spinner"></span> 探索中...
+        <span class="spinner"></span> 探索中...
     </div>
     <div id="suggestions-container" class="hidden">
       <ul id="suggestions"></ul>
     </div>
   </div>
 
+  <!-- 地図 -->
   <div id="map"></div>
-
-  <div id="route-info-container" class="hidden">
-    <div id="route-info">
-      <strong id="destination-name"></strong><br>
-      <span id="route-distance"></span> / <span id="route-duration"></span>
-    </div>
-    <button id="reset-btn" onclick="localStorage.clear(); location.reload();">キー解除</button>
-  </div>
 
   <script src="script.js"></script>
 </body>

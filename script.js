@@ -27,36 +27,45 @@ function startApp(mbToken, yhId) {
         zoom: 13
     });
 
+    const statusEl = document.getElementById('location-status');
+    let currentLocation = null;
+    let currentPosMarker = null;
+    let destinationMarker = null;
+
+    // --- 現在地取得ロジック ---
+    if (!navigator.geolocation) {
+        statusEl.textContent = "❌ 位置情報非対応ブラウザです";
+        statusEl.style.color = "red";
+    } else {
+        navigator.geolocation.watchPosition(
+            p => {
+                currentLocation = [p.coords.longitude, p.coords.latitude];
+                statusEl.textContent = "✅ 現在地を取得済み";
+                statusEl.style.color = "#007bff";
+                
+                if (!currentPosMarker) {
+                    currentPosMarker = new mapboxgl.Marker({ color: '#007bff' })
+                        .setLngLat(currentLocation)
+                        .addTo(map);
+                } else {
+                    currentPosMarker.setLngLat(currentLocation);
+                }
+            },
+            e => {
+                let msg = "❌ 位置情報を取得できません";
+                if (e.code === 1) msg = "❌ 位置情報の利用を許可してください";
+                statusEl.textContent = msg;
+                statusEl.style.color = "red";
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    // --- Yahoo検索 ---
     const searchBox = document.getElementById('search-box');
     const searchLoader = document.getElementById('search-loader');
     const suggestionsContainer = document.getElementById('suggestions-container');
     const suggestionsList = document.getElementById('suggestions');
-
-    let currentLocation = null;
-    let destinationMarker = null;
-    let currentPosMarker = null; // ★現在地ピン用の変数
-
-    // 現在地取得とピンの表示
-    navigator.geolocation.watchPosition(
-        p => {
-            currentLocation = [p.coords.longitude, p.coords.latitude];
-            console.log("現在地を取得しました:", currentLocation);
-
-            // ★現在地に青いピンを指す（すでにある場合は位置を更新）
-            if (!currentPosMarker) {
-                currentPosMarker = new mapboxgl.Marker({ color: '#007bff' }) // 青色のピン
-                    .setLngLat(currentLocation)
-                    .setPopup(new mapboxgl.Popup().setHTML("現在地"))
-                    .addTo(map);
-            } else {
-                currentPosMarker.setLngLat(currentLocation);
-            }
-        },
-        e => {
-            console.warn("位置情報の取得に失敗しました:", e.message);
-        },
-        { enableHighAccuracy: true }
-    );
 
     let timeout = null;
     searchBox.addEventListener('input', (e) => {
@@ -100,26 +109,17 @@ function startApp(mbToken, yhId) {
         });
     };
 
+    // --- ルート描画・逆算 ---
     async function drawRoute(name, destCoords) {
-        let startPoint = currentLocation;
-        if (!startPoint) {
-            const center = map.getCenter();
-            startPoint = [center.lng, center.lat];
-        }
+        let startPoint = currentLocation || [map.getCenter().lng, map.getCenter().lat];
 
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${startPoint[0]},${startPoint[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
         try {
             const res = await fetch(url);
             const data = await res.json();
-            
-            if (!data.routes || data.routes.length === 0) {
-                alert("ルートが見つかりませんでした。");
-                return;
-            }
-
             const route = data.routes[0];
-            const travelTimeSec = route.duration; 
+            const travelTimeSec = route.duration;
 
             if (map.getSource('route')) {
                 map.removeLayer('route');
@@ -130,12 +130,9 @@ function startApp(mbToken, yhId) {
 
             if (destinationMarker) destinationMarker.remove();
             destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
-            
             map.fitBounds(new mapboxgl.LngLatBounds(startPoint, destCoords), { padding: 80 });
 
-            const infoPanel = document.getElementById('info-panel');
-            infoPanel.classList.remove('hidden');
-
+            document.getElementById('info-panel').classList.remove('hidden');
             document.getElementById('destination-name').textContent = name;
             document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
             document.getElementById('route-duration').textContent = `${Math.round(travelTimeSec / 60)} 分`;
@@ -143,35 +140,23 @@ function startApp(mbToken, yhId) {
             const updateDepartureTime = () => {
                 const arrivalInput = document.getElementById('target-arrival-time').value;
                 const restMin = parseInt(document.getElementById('rest-time').value) || 0;
-                const resultBox = document.getElementById('departure-result');
-                const calcDisplay = document.getElementById('calc-time');
-
                 if (!arrivalInput) return;
 
-                const [hours, minutes] = arrivalInput.split(':');
+                const [h, m] = arrivalInput.split(':');
                 const arrivalDate = new Date();
-                arrivalDate.setHours(hours, minutes, 0);
+                arrivalDate.setHours(h, m, 0);
 
-                const departureTimeMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
-                const departureDate = new Date(departureTimeMs);
-
-                const depH = String(departureDate.getHours()).padStart(2, '0');
-                const depM = String(departureDate.getMinutes()).padStart(2, '0');
-
-                calcDisplay.textContent = `${depH}:${depM}`;
-                resultBox.style.display = 'block';
+                const depMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
+                const d = new Date(depMs);
+                document.getElementById('calc-time').textContent = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                document.getElementById('departure-result').style.display = 'block';
             };
 
             document.getElementById('target-arrival-time').onchange = updateDepartureTime;
             document.getElementById('rest-time').oninput = updateDepartureTime;
             updateDepartureTime();
-
-        } catch (error) {
-            console.error("ルート取得エラー:", error);
-        }
+        } catch (e) { console.error(e); }
     }
 
-    document.getElementById('close-panel').onclick = () => {
-        document.getElementById('info-panel').classList.add('hidden');
-    };
+    document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
 }
