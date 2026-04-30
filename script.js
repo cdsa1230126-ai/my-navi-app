@@ -30,23 +30,32 @@ function startApp(mapboxToken, yahooId) {
     let currentMarker = null;
     let destMarker = null;
 
-    // 現在地取得（青いピン）
+    // ★【機能追加】現在地のリアルタイム監視
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
+        
+        // 初回取得時に地図を現在地へ飛ばす
         if (!currentMarker) {
             currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
+            map.flyTo({ center: currentLocation, zoom: 15 });
         } else {
+            // 移動に合わせてピンを動かす
             currentMarker.setLngLat(currentLocation);
         }
-    }, null, { enableHighAccuracy: true });
+    }, e => {
+        console.error("位置情報が取得できませんでした", e);
+    }, { enableHighAccuracy: true });
 
-    // Yahoo検索
+    // 現在地復帰ボタンの処理
+    document.getElementById('recenter-btn').onclick = () => {
+        if (currentLocation) map.flyTo({ center: currentLocation, zoom: 15 });
+    };
+
+    // Yahoo検索処理
     const searchBox = document.getElementById('search-box');
-    const searchLoader = document.getElementById('search-loader');
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         if (!query) return;
-        searchLoader.classList.remove('hidden');
         const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&query=${encodeURIComponent(query)}&output=json&callback=handleResults`;
         const script = document.createElement('script');
         script.src = url;
@@ -55,7 +64,6 @@ function startApp(mapboxToken, yahooId) {
     });
 
     window.handleResults = (data) => {
-        searchLoader.classList.add('hidden');
         const list = document.getElementById('suggestions');
         list.innerHTML = '';
         if (!data.Feature) return;
@@ -80,32 +88,30 @@ function startApp(mapboxToken, yahooId) {
         const data = await res.json();
         const route = data.routes[0];
 
-        // ルート描画
         if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
         map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
         map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007aff', 'line-width': 6 } });
 
-        // 赤いピン（目的地）
         if (destMarker) destMarker.remove();
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
 
-        // ★2つのピンを収める（下側パディングを420px確保）
+        // ★2つのピンを画面に収める調整
         const bounds = new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords);
         map.fitBounds(bounds, {
             padding: {top: 80, bottom: 420, left: 50, right: 50},
             duration: 1500
         });
 
-        // パネル更新
+        // 情報更新
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
         document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
         document.getElementById('route-duration').textContent = `${Math.round(route.duration / 60)} 分`;
 
-        // 逆算ロジック
+        // 逆算ロジック（休憩時間 × 回数）
         const updateCalc = () => {
             const arrTime = document.getElementById('target-arrival-time').value;
-            const restTimePerOnce = parseInt(document.getElementById('rest-time').value) || 0;
+            const restPerOnce = parseInt(document.getElementById('rest-time').value) || 0;
             const restCount = parseInt(document.getElementById('rest-count').value) || 0;
             
             if (!arrTime) return;
@@ -114,12 +120,8 @@ function startApp(mapboxToken, yahooId) {
             const target = new Date();
             target.setHours(h, m, 0);
 
-            // 合計休憩 = 1回あたりの時間 × 回数
-            const totalRestMin = restTimePerOnce * restCount;
-            const totalRestMs = totalRestMin * 60 * 1000;
-
-            // 推奨出発 = 到着希望 - 移動時間 - 休憩合計
-            const depMs = target.getTime() - (route.duration * 1000) - totalRestMs;
+            const totalRestMin = restPerOnce * restCount;
+            const depMs = target.getTime() - (route.duration * 1000) - (totalRestMin * 60 * 1000);
             const d = new Date(depMs);
             
             document.getElementById('calc-time').textContent = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -127,7 +129,6 @@ function startApp(mapboxToken, yahooId) {
             document.getElementById('departure-card').classList.remove('hidden');
         };
 
-        // イベント監視
         document.getElementById('target-arrival-time').onchange = updateCalc;
         document.getElementById('rest-time').oninput = updateCalc;
         document.getElementById('rest-count').oninput = updateCalc;

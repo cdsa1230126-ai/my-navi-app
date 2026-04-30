@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Movilink Style - 完全版</title>
+  <title>Movilink Style - 逆算ナビ完全版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -30,6 +30,8 @@
 
   <div id="map"></div>
 
+  <button id="recenter-btn" class="map-ctrl-btn">📍</button>
+
   <div id="info-panel" class="hidden">
     <div class="panel-handle"></div>
     
@@ -41,29 +43,25 @@
       </div>
     </div>
 
-    <div class="config-section">
-      <div class="config-grid">
-        <div class="config-item">
-          <label>到着希望</label>
-          <input type="time" id="target-arrival-time">
-        </div>
-        <div class="config-item">
-          <label>休憩時間/回(分)</label>
-          <input type="number" id="rest-time" value="0" min="0" step="5">
-        </div>
-        <div class="config-item">
-          <label>休憩回数</label>
-          <input type="number" id="rest-count" value="0" min="0">
-        </div>
+    <div class="config-grid">
+      <div class="config-item">
+        <label>到着希望</label>
+        <input type="time" id="target-arrival-time">
+      </div>
+      <div class="config-item">
+        <label>休憩時間/回(分)</label>
+        <input type="number" id="rest-time" value="0" min="0" step="5">
+      </div>
+      <div class="config-item">
+        <label>休憩回数</label>
+        <input type="number" id="rest-count" value="0" min="0">
       </div>
     </div>
 
     <div id="departure-card" class="hidden">
-      <div class="dep-inner">
-        <div class="dep-title">推奨出発時刻</div>
-        <div id="calc-time">--:--</div>
-        <div id="total-rest-info" class="dep-note">休憩合計: 0分</div>
-      </div>
+      <div class="dep-title">推奨出発時刻</div>
+      <div id="calc-time">--:--</div>
+      <div id="total-rest-info" class="dep-note">休憩合計: 0分</div>
     </div>
 
     <div class="panel-footer">
