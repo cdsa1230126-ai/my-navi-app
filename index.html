@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Movilink Style - ナビ実行モード搭載</title>
+  <title>Movilink Style Navigation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -12,19 +12,19 @@
     #map { width: 100%; height: 100%; position: absolute; }
 
     /* 検索バー */
-    #search-container { position: absolute; top: 15px; left: 10px; right: 10px; z-index: 2000; transition: transform 0.3s; }
+    #search-container { position: absolute; top: 15px; left: 10px; right: 10px; z-index: 2000; transition: 0.3s; }
     .search-bar { background: white; border-radius: 14px; display: flex; align-items: center; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
     #search-box { border: none; outline: none; font-size: 16px; width: 100%; margin-left: 10px; }
 
-    /* 操作ボタン */
+    /* 右側操作ボタン */
     .map-ctrl-btn {
       position: absolute; right: 16px; width: 50px; height: 50px; border-radius: 25px;
       background: white; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-weight: bold; z-index: 4000;
     }
     #recenter-btn { bottom: 120px; font-size: 20px; }
-    #view-toggle-btn { bottom: 180px; color: var(--movi-blue); }
+    #view-toggle-btn { bottom: 180px; color: #1c1c1e; font-size: 16px; }
 
-    /* メインパネル */
+    /* 下部パネル */
     #info-panel {
       position: absolute; bottom: 0; left: 0; right: 0; background: var(--movi-card); 
       border-radius: 24px 24px 0 0; padding: 12px 20px 30px 20px; z-index: 3000;
@@ -32,25 +32,24 @@
     }
     .panel-handle { width: 40px; height: 5px; background: #e5e5ea; border-radius: 3px; margin: 0 auto 15px auto; }
     
-    /* 設定用UI (案内開始前) */
+    /* 案内開始前の詳細設定 */
     .panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
     .stat-highlight { font-size: 26px; color: var(--movi-blue); font-weight: 800; background: rgba(0,122,255,0.05); padding: 5px 10px; border-radius: 8px; }
     .config-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
     .config-item label { display: block; font-size: 10px; color: #8e8e93; margin-bottom: 5px; font-weight: bold; }
-    .config-item input { width: 100%; padding: 12px; border: 1px solid #f2f2f7; border-radius: 12px; box-sizing: border-box; }
+    .config-item input { width: 100%; padding: 12px; border: 1px solid #f2f2f7; border-radius: 12px; box-sizing: border-box; font-size: 14px; }
     
     #departure-card { background: #f0f7ff; border-radius: 18px; padding: 15px; text-align: center; margin-bottom: 15px; border: 1px solid #cce4ff; }
     #calc-time { font-size: 44px; font-weight: 900; color: #1c1c1e; margin: 5px 0; }
-    .btn-primary { flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: bold; }
-    .btn-secondary { flex: 1; background: #f2f2f7; color: #48484a; border: none; padding: 16px; border-radius: 14px; }
+    .btn-primary { flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: bold; font-size: 16px; }
+    .btn-secondary { flex: 1; background: #f2f2f7; color: #48484a; border: none; padding: 16px; border-radius: 14px; font-size: 16px; }
     .panel-footer { display: flex; gap: 12px; }
 
-    /* 案内中UI (簡略化) */
-    #nav-active-content { padding: 10px 0; text-align: center; }
-    .nav-summary { display: flex; justify-content: space-between; align-items: center; }
-    .nav-info-group { text-align: left; }
-    #nav-remaining-time { font-size: 36px; font-weight: 900; color: var(--movi-blue); line-height: 1; }
-    #nav-arrival-estimate { font-size: 16px; color: #8e8e93; margin-top: 4px; }
+    /* 案内開始後の簡略化UI */
+    #nav-active-content { padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+    .nav-info-left { text-align: left; }
+    #nav-remaining-time { font-size: 38px; font-weight: 900; color: var(--movi-blue); line-height: 1; }
+    #nav-arrival-estimate { font-size: 16px; color: #8e8e93; margin-top: 5px; }
     .btn-stop { background: #ff3b30; color: white; border: none; padding: 14px 24px; border-radius: 14px; font-weight: bold; }
 
     #suggestions-container { background: white; border-radius: 14px; margin-top: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-height: 40vh; overflow-y: auto; }
@@ -64,10 +63,10 @@
 
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h3>初期設定</h3>
-      <input type="text" id="mapbox-token-input" placeholder="Mapbox Token" />
-      <input type="text" id="yahoo-id-input" placeholder="Yahoo! App ID" />
-      <button id="save-api-keys" style="margin-top:15px; padding:10px 20px;">開始する</button>
+      <h3>APIキーの設定</h3>
+      <input type="text" id="mapbox-token-input" placeholder="Mapbox Token" style="width:90%; padding:10px; margin-bottom:10px;">
+      <input type="text" id="yahoo-id-input" placeholder="Yahoo! App ID" style="width:90%; padding:10px;">
+      <button id="save-api-keys" style="margin-top:20px; padding:12px 30px; background:var(--movi-blue); color:white; border:none; border-radius:10px;">保存して開始</button>
     </div>
   </div>
 
@@ -85,16 +84,17 @@
     
     <div id="pre-nav-content">
       <div class="panel-header">
-        <div><h2 id="destination-name" style="margin:0">目的地</h2><small id="route-distance">--km</small></div>
+        <div><h2 id="destination-name" style="margin:0; font-size:22px;">目的地</h2><small id="route-distance" style="color:#8e8e93;">--km</small></div>
         <div id="route-duration" class="stat-highlight">--分</div>
       </div>
       <div class="config-grid">
         <div class="config-item"><label>到着希望</label><input type="time" id="target-arrival-time" value="18:00"></div>
         <div class="config-item"><label>休憩/回(分)</label><input type="number" id="rest-time" value="10"></div>
-        <div class="config-item"><label>休憩回数</label><input type="number" id="rest-count" value="3"></div>
+        <div class="config-item"><label>休憩回数</label><input type="number" id="rest-count" value="1"></div>
       </div>
       <div id="departure-card" class="hidden">
-        <small>推奨出発時刻</small><div id="calc-time">--:--</div>
+        <div style="font-size:12px; color:#8e8e93;">推奨出発時刻</div>
+        <div id="calc-time">--:--</div>
         <div id="total-rest-info" style="font-size:12px; color:#8e8e93">休憩合計: 0分</div>
       </div>
       <div class="panel-footer">
@@ -104,13 +104,11 @@
     </div>
 
     <div id="nav-active-content" class="hidden">
-      <div class="nav-summary">
-        <div class="nav-info-group">
-          <div id="nav-remaining-time">--分</div>
-          <div id="nav-arrival-estimate">--:-- 到着予定</div>
-        </div>
-        <button id="stop-nav" class="btn-stop">終了</button>
+      <div class="nav-info-left">
+        <div id="nav-remaining-time">--分</div>
+        <div id="nav-arrival-estimate">--:-- 到着予定</div>
       </div>
+      <button id="stop-nav" class="btn-stop">終了</button>
     </div>
   </div>
 

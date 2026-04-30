@@ -93,11 +93,11 @@ function startApp(mapboxToken, yahooId) {
 
         if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
         map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: currentRouteData.geometry } });
-        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007aff', 'line-width': 6, 'line-opacity': 0.6 } });
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007aff', 'line-width': 6, 'line-opacity': 0.7 } });
 
         if (destMarker) destMarker.remove();
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
-        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 400, left: 50, right: 50} });
+        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 400, left: 50, right: 50}, duration: 1000 });
         
         updatePanelUI(name);
     }
@@ -145,25 +145,31 @@ function startApp(mapboxToken, yahooId) {
         calc();
     }
 
-    // 案内開始
+    // 案内開始ボタン
     document.getElementById('start-nav').onclick = () => {
         showRestAreas();
-        map.flyTo({ center: currentLocation, zoom: 17, essential: true });
+        map.flyTo({ center: currentLocation, zoom: 17, speed: 1.2, essential: true });
+        
+        // UI切り替え
         document.getElementById('pre-nav-content').classList.add('hidden');
         document.getElementById('nav-active-content').classList.remove('hidden');
-        document.getElementById('search-container').style.transform = 'translateY(-100px)';
+        document.getElementById('search-container').style.transform = 'translateY(-120px)';
         
+        // 案内情報の更新
         const durMin = Math.round(currentRouteData.duration / 60);
         document.getElementById('nav-remaining-time').textContent = `${durMin}分`;
         const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
         document.getElementById('nav-arrival-estimate').textContent = `${arr.getHours()}:${String(arr.getMinutes()).padStart(2,'0')} 到着予定`;
     };
 
+    // 案内終了
     document.getElementById('stop-nav').onclick = () => {
         document.getElementById('pre-nav-content').classList.remove('hidden');
         document.getElementById('nav-active-content').classList.add('hidden');
         document.getElementById('search-container').style.transform = 'translateY(0)';
         restMarkers.forEach(m => m.remove());
+        map.easeTo({ pitch: 0 });
+        document.getElementById('view-toggle-btn').innerHTML = '2D';
     };
 
     document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
