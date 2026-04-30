@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Movilink Style - 追従機能強化版</title>
+  <title>Movilink Style - 逆算ナビ完全統合版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -13,57 +13,67 @@
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3>初期設定</h3>
+      <p style="font-size: 12px; color: #666;">MapboxとYahoo!のAPIキーを入力してください</p>
       <input type="text" id="mapbox-token-input" placeholder="Mapbox Token" />
       <input type="text" id="yahoo-id-input" placeholder="Yahoo! App ID" />
-      <button id="save-api-keys">開始</button>
+      <button id="save-api-keys">設定を保存して開始</button>
     </div>
   </div>
 
   <div id="search-container">
     <div class="search-bar">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-box" placeholder="目的地を検索" autocomplete="off" />
+      <input type="text" id="search-box" placeholder="目的地を検索（施設名・住所）" autocomplete="off" />
+      <div id="search-loader" class="hidden"><span class="spinner"></span></div>
     </div>
     <div id="suggestions-container" class="hidden"><ul id="suggestions"></ul></div>
   </div>
 
   <div id="map"></div>
 
-  <button id="recenter-btn" class="map-ctrl-btn">📍</button>
+  <button id="recenter-btn" class="map-ctrl-btn" title="現在地へ戻る">📍</button>
 
   <div id="info-panel" class="hidden">
     <div class="panel-handle"></div>
+    
     <div class="panel-header">
-      <h2 id="destination-name">目的地</h2>
-      <div class="route-quick-stats">
-        <div id="route-duration" class="stat-main">--分</div>
-        <div id="route-distance">--km</div>
+      <div class="title-group">
+        <h2 id="destination-name">目的地</h2>
+        <div id="route-distance" class="sub-stats">--km</div>
+      </div>
+      <div class="route-main-stats">
+        <div id="route-duration" class="stat-highlight">--分</div>
       </div>
     </div>
 
-    <div class="config-grid">
-      <div class="config-item">
-        <label>到着希望</label>
-        <input type="time" id="target-arrival-time">
-      </div>
-      <div class="config-item">
-        <label>休憩時間/回(分)</label>
-        <input type="number" id="rest-time" value="0" min="0" step="5">
-      </div>
-      <div class="config-item">
-        <label>休憩回数</label>
-        <input type="number" id="rest-count" value="0" min="0">
+    <div class="config-section">
+      <div class="config-grid">
+        <div class="config-item">
+          <label>到着希望時刻</label>
+          <input type="time" id="target-arrival-time">
+        </div>
+        <div class="config-item">
+          <label>休憩/1回(分)</label>
+          <input type="number" id="rest-time" value="0" min="0" step="5">
+        </div>
+        <div class="config-item">
+          <label>休憩回数</label>
+          <input type="number" id="rest-count" value="0" min="0">
+        </div>
       </div>
     </div>
 
     <div id="departure-card" class="hidden">
-      <div class="dep-title">推奨出発時刻</div>
-      <div id="calc-time">--:--</div>
-      <div id="total-rest-info" class="dep-note">休憩合計: 0分</div>
+      <div class="dep-inner">
+        <div class="dep-label">推奨出発時刻</div>
+        <div id="calc-time">--:--</div>
+        <div id="total-rest-info" class="dep-details">休憩合計: 0分</div>
+      </div>
     </div>
 
     <div class="panel-footer">
       <button id="close-panel" class="btn-secondary">閉じる</button>
+      <button class="btn-reset" onclick="if(confirm('設定をリセットしますか？')){localStorage.clear(); location.reload();}">リセット</button>
       <button id="start-nav" class="btn-primary">案内開始</button>
     </div>
   </div>
