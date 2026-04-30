@@ -29,12 +29,11 @@ function startApp(mapboxToken, yahooId) {
     let currentLocation = null;
     let currentMarker = null;
     let destMarker = null;
-    let restMarkers = []; // 黄色のピンを管理
+    let restMarkers = [];
     let isFirstLock = true;
-    let displayMode = 'duration';
     let currentRouteData = null;
 
-    // 渋滞レイヤー
+    // 渋滞情報の表示
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
@@ -46,7 +45,7 @@ function startApp(mapboxToken, yahooId) {
         });
     });
 
-    // 現在地追従
+    // 現在地取得
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
         if (!currentMarker) {
@@ -60,11 +59,7 @@ function startApp(mapboxToken, yahooId) {
         }
     }, null, { enableHighAccuracy: true });
 
-    document.getElementById('recenter-btn').onclick = () => {
-        if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 });
-    };
-
-    // Yahoo検索
+    // 検索処理 (Yahoo)
     const searchBox = document.getElementById('search-box');
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
@@ -93,7 +88,7 @@ function startApp(mapboxToken, yahooId) {
         });
     };
 
-    // ルート描画
+    // ルート表示 (案内開始前)
     async function drawRoute(name, destCoords) {
         if (!currentLocation) return;
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mapboxToken}`;
@@ -109,93 +104,95 @@ function startApp(mapboxToken, yahooId) {
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
 
         map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 450, left: 50, right: 50}, duration: 1000 });
-
-        updatePanelUI(name);
         
-        // ★修正点：ここ（目的地決定時）ではピン表示を呼び出さない
-        // suggestRestAreas(currentRouteData); 
+        updatePanelUI(name);
     }
 
-    // --- インテリジェント休憩提案（黄色いピンを表示） ---
-    async function suggestRestAreas(route) {
-        // 古い休憩ピンを削除
+    // ★重要：休憩ピンを表示する関数
+    async function showRestAreas() {
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
-
         const count = parseInt(document.getElementById('rest-count').value) || 0;
-        if (count <= 0 || !route) return;
+        if (count <= 0 || !currentRouteData) return;
 
-        const coords = route.geometry.coordinates;
+        const coords = currentRouteData.geometry.coordinates;
         for (let i = 1; i <= count; i++) {
             const pt = coords[Math.floor((coords.length / (count + 1)) * i)];
-            const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=${encodeURIComponent('コンビニ サービスエリア 道の駅')}&output=json&results=1&callback=restCb${i}`;
-            
-            window[`restCb${i}`] = (data) => {
+            const cbName = `restCb_${i}`;
+            window[cbName] = (data) => {
                 if (data.Feature) {
                     const spot = data.Feature[0];
                     const sc = spot.Geometry.Coordinates.split(',');
-                    
-                    // 休憩地点に黄色のピンを立てる
-                    const m = new mapboxgl.Marker({ color: '#FFD700' }) // イエロー/ゴールド
+                    const m = new mapboxgl.Marker({ color: '#FFD700' }) // 黄色のピン
                         .setLngLat([parseFloat(sc[0]), parseFloat(sc[1])])
-                        .setPopup(new mapboxgl.Popup().setHTML(`<b>休憩候補 ${i}</b><br>${spot.Name}`))
+                        .setPopup(new mapboxgl.Popup().setHTML(`${spot.Name}`))
                         .addTo(map);
-                    
                     restMarkers.push(m);
                 }
             };
-            const s = document.createElement('script'); s.src = url; document.body.appendChild(s);
+            const s = document.createElement('script');
+            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cbName}`;
+            document.body.appendChild(s);
+            s.onload = () => s.remove();
         }
     }
 
-    // UI更新 & トグル
     function updatePanelUI(name) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
         document.getElementById('route-distance').textContent = `${(currentRouteData.distance / 1000).toFixed(1)}km`;
-        
-        const durEl = document.getElementById('route-duration');
-        const refreshTime = () => {
-            if (displayMode === 'duration') {
-                durEl.textContent = `${Math.round(currentRouteData.duration / 60)}分`;
-            } else {
-                const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
-                durEl.textContent = `${arr.getHours()}:${String(arr.getMinutes()).padStart(2,'0')}着`;
-            }
-        };
-        durEl.onclick = () => { displayMode = (displayMode === 'duration') ? 'arrival' : 'duration'; refreshTime(); };
-        refreshTime();
+        document.getElementById('route-duration').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
 
-        // 逆算計算ロジック
-        const calc = () => {
-            const arrT = document.getElementById('target-arrival-time').value;
-            const rTime = parseInt(document.getElementById('rest-time').value) || 0;
-            const rCnt = parseInt(document.getElementById('rest-count').value) || 0;
-            if (!arrT) return;
-            const t = new Date(); const [h, m] = arrT.split(':'); t.setHours(h, m, 0);
-            const dep = new Date(t.getTime() - (currentRouteData.duration * 1000) - (rTime * rCnt * 60 * 1000));
-            document.getElementById('calc-time').textContent = `${String(dep.getHours()).padStart(2,'0')}:${String(dep.getMinutes()).padStart(2,'0')}`;
-            document.getElementById('total-rest-info').textContent = `休憩合計: ${rTime * rCnt}分 (${rCnt}回)`;
-            document.getElementById('departure-card').classList.remove('hidden');
-        };
-        // 設定変更時は逆算のみ更新
-        document.querySelectorAll('.config-grid input').forEach(i => i.oninput = () => { calc(); });
-        calc();
+        // 到着時刻逆算の初期計算
+        calcDeparture();
 
-        // ★修正点：案内開始ボタンが押された時の処理を追加
-        document.getElementById('start-nav').onclick = () => {
-            alert('案内を開始します。休憩地点を表示します。');
-            suggestRestAreas(currentRouteData); // ここで黄色いピンを表示
-            
-            // 将来的にナビゲーションモードへの切り替え（視点変更など）をここに書く
-            map.flyTo({
-                center: currentLocation,
-                zoom: 18,
-                pitch: 60, // 3D視点に
-                bearing: map.getBearing(), // 現在の方角を維持
-                essential: true
-            });
-        };
+        // 入力が変わるたびに逆算を更新
+        document.querySelectorAll('.config-grid input').forEach(input => {
+            input.oninput = calcDeparture;
+        });
     }
-    document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
+
+    function calcDeparture() {
+        const arrT = document.getElementById('target-arrival-time').value;
+        const rTime = parseInt(document.getElementById('rest-time').value) || 0;
+        const rCnt = parseInt(document.getElementById('rest-count').value) || 0;
+        if (!arrT || !currentRouteData) return;
+
+        const t = new Date();
+        const [h, m] = arrT.split(':');
+        t.setHours(h, m, 0);
+        const dep = new Date(t.getTime() - (currentRouteData.duration * 1000) - (rTime * rCnt * 60 * 1000));
+        
+        document.getElementById('calc-time').textContent = `${String(dep.getHours()).padStart(2,'0')}:${String(dep.getMinutes()).padStart(2,'0')}`;
+        document.getElementById('total-rest-info').textContent = `休憩合計: ${rTime * rCnt}分 (${rCnt}回)`;
+        document.getElementById('departure-card').classList.remove('hidden');
+    }
+
+    // ★案内開始ボタンのクリックイベント (確実に登録)
+    const startBtn = document.getElementById('start-nav');
+    startBtn.onclick = () => {
+        if (!currentRouteData) return;
+
+        // 1. 休憩地点の黄色いピンを表示
+        showRestAreas();
+
+        // 2. ナビゲーション視点に切り替え (Movilink風の3D視点)
+        map.flyTo({
+            center: currentLocation,
+            zoom: 18,
+            pitch: 60,
+            bearing: 0, 
+            essential: true
+        });
+
+        // 3. UIの調整（検索バーを隠すなど）
+        document.getElementById('search-container').classList.add('hidden');
+        startBtn.textContent = "案内中";
+        startBtn.style.backgroundColor = "#4cd964"; // 緑色に変更
+    };
+
+    document.getElementById('close-panel').onclick = () => {
+        document.getElementById('info-panel').classList.add('hidden');
+        document.getElementById('search-container').classList.remove('hidden');
+    };
 }
