@@ -4,19 +4,20 @@
   --movi-card: #ffffff;
 }
 
-body { margin: 0; padding: 0; font-family: -apple-system, "Hiragino Sans", sans-serif; height: 100dvh; background: var(--movi-bg); overflow: hidden; }
+body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; overflow: hidden; background: var(--movi-bg); }
 #map { width: 100%; height: 100%; position: absolute; }
 
-/* 現在地復帰ボタン */
+/* 現在地へ戻るボタン */
 .map-ctrl-btn {
-  position: absolute; right: 20px; top: 100px;
+  position: absolute; right: 15px; bottom: 100px; /* パネルに被らない位置 */
   width: 50px; height: 50px; border-radius: 25px;
-  background: white; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  font-size: 24px; z-index: 1500; cursor: pointer;
+  background: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  font-size: 20px; z-index: 1500; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
+.map-ctrl-btn:active { background: #f2f2f7; }
 
 #search-container { position: absolute; top: 15px; left: 10px; right: 10px; z-index: 2000; }
-.search-bar { background: white; border-radius: 12px; display: flex; align-items: center; padding: 12px 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.search-bar { background: white; border-radius: 12px; display: flex; align-items: center; padding: 12px 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid #e5e5ea; }
 #search-box { border: none; outline: none; font-size: 16px; width: 100%; margin-left: 10px; }
 
 #info-panel {
@@ -26,25 +27,23 @@ body { margin: 0; padding: 0; font-family: -apple-system, "Hiragino Sans", sans-
   box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
 }
 .panel-handle { width: 40px; height: 5px; background: #e5e5ea; border-radius: 3px; margin: 0 auto 15px auto; }
-
 .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-#destination-name { margin: 0; font-size: 20px; font-weight: bold; color: #1c1c1e; }
+#destination-name { margin: 0; font-size: 20px; font-weight: bold; }
 .stat-main { font-size: 22px; color: var(--movi-blue); font-weight: 800; }
 
 .config-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
 .config-item label { display: block; font-size: 10px; color: #8e8e93; margin-bottom: 5px; font-weight: bold; }
 .config-item input { width: 100%; padding: 12px; border: 1px solid #f2f2f7; background: #f9f9f9; border-radius: 10px; font-size: 15px; box-sizing: border-box; }
 
-#departure-card { background: #f0f7ff; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; border: 1px solid #cce4ff; }
-#calc-time { font-size: 42px; font-weight: 900; color: #1c1c1e; line-height: 1; margin: 8px 0; }
+#departure-card { background: #f0f7ff; border-radius: 16px; padding: 15px; text-align: center; margin-bottom: 20px; border: 1px solid #cce4ff; }
+#calc-time { font-size: 40px; font-weight: 900; color: #1c1c1e; margin: 5px 0; }
 
 .panel-footer { display: flex; gap: 10px; }
-.btn-primary { flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: bold; font-size: 16px; }
-.btn-secondary, .btn-reset { flex: 1; background: #f2f2f7; color: #48484a; border: none; padding: 16px; border-radius: 14px; font-weight: bold; font-size: 13px; }
+.btn-primary { flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: bold; }
+.btn-secondary { flex: 1; background: #f2f2f7; color: #48484a; border: none; padding: 16px; border-radius: 14px; }
 
 #suggestions-container { background: white; border-radius: 12px; margin-top: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 40vh; overflow-y: auto; }
 #suggestions li { padding: 15px; border-bottom: 1px solid #f2f2f7; list-style: none; }
-
 .hidden { display: none !important; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; }
 .modal-content { background: white; padding: 30px; border-radius: 24px; width: 80%; }

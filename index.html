@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Movilink Style - 逆算ナビ完全版</title>
+  <title>Movilink Style - 追従機能強化版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -15,7 +15,7 @@
       <h3>初期設定</h3>
       <input type="text" id="mapbox-token-input" placeholder="Mapbox Token" />
       <input type="text" id="yahoo-id-input" placeholder="Yahoo! App ID" />
-      <button id="save-api-keys">設定を保存して開始</button>
+      <button id="save-api-keys">開始</button>
     </div>
   </div>
 
@@ -23,7 +23,6 @@
     <div class="search-bar">
       <span class="search-icon">🔍</span>
       <input type="text" id="search-box" placeholder="目的地を検索" autocomplete="off" />
-      <div id="search-loader" class="hidden"><span class="spinner"></span></div>
     </div>
     <div id="suggestions-container" class="hidden"><ul id="suggestions"></ul></div>
   </div>
@@ -34,7 +33,6 @@
 
   <div id="info-panel" class="hidden">
     <div class="panel-handle"></div>
-    
     <div class="panel-header">
       <h2 id="destination-name">目的地</h2>
       <div class="route-quick-stats">
@@ -66,7 +64,6 @@
 
     <div class="panel-footer">
       <button id="close-panel" class="btn-secondary">閉じる</button>
-      <button id="reset-app" class="btn-reset" onclick="localStorage.clear(); location.reload();">リセット</button>
       <button id="start-nav" class="btn-primary">案内開始</button>
     </div>
   </div>
