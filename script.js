@@ -33,23 +33,15 @@ function startApp(mbToken, yhId) {
     let destinationMarker = null;
     let isFirstLocation = true;
 
-    // --- 現在地取得ロジック（最強安定版） ---
-    if (!navigator.geolocation) {
-        if (statusEl) statusEl.textContent = "❌ 位置情報非対応";
-    } else {
+    // --- 現在地取得ロジック ---
+    if (navigator.geolocation) {
         navigator.geolocation.watchPosition(
             p => {
                 currentLocation = [p.coords.longitude, p.coords.latitude];
-                
-                // ★ピンが立ったら、ステータス表示を「物理的に削除」して二度と出さない
-                if (statusEl && statusEl.parentNode) {
-                    statusEl.remove(); 
-                }
+                if (statusEl && statusEl.parentNode) statusEl.remove();
                 
                 if (!currentPosMarker) {
-                    currentPosMarker = new mapboxgl.Marker({ color: '#007bff' })
-                        .setLngLat(currentLocation)
-                        .addTo(map);
+                    currentPosMarker = new mapboxgl.Marker({ color: '#007bff' }).setLngLat(currentLocation).addTo(map);
                 } else {
                     currentPosMarker.setLngLat(currentLocation);
                 }
@@ -59,20 +51,12 @@ function startApp(mbToken, yhId) {
                     isFirstLocation = false;
                 }
             },
-            e => {
-                // まだ一度も取れていない時だけエラー表示
-                if (!currentLocation && statusEl) {
-                    let msg = "❌ 現在地を探しています...";
-                    if (e.code === 1) msg = "❌ 位置許可をオンにしてください";
-                    statusEl.textContent = msg;
-                    statusEl.style.color = "red";
-                }
-            },
+            null,
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
         );
     }
 
-    // --- 検索ロジック ---
+    // --- Yahoo検索 ---
     const searchBox = document.getElementById('search-box');
     const searchLoader = document.getElementById('search-loader');
     const suggestionsContainer = document.getElementById('suggestions-container');
@@ -118,16 +102,16 @@ function startApp(mbToken, yhId) {
         });
     };
 
-    // --- ルート描画・逆算 ---
+    // --- ルート描画・全体表示の調整 ---
     async function drawRoute(name, destCoords) {
         let startPoint = currentLocation || [map.getCenter().lng, map.getCenter().lat];
+        // 交通状況を加味したルート取得
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${startPoint[0]},${startPoint[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
         try {
             const res = await fetch(url);
             const data = await res.json();
             const route = data.routes[0];
-            const travelTimeSec = route.duration;
 
             if (map.getSource('route')) {
                 map.removeLayer('route');
@@ -138,13 +122,23 @@ function startApp(mbToken, yhId) {
 
             if (destinationMarker) destinationMarker.remove();
             destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
-            map.fitBounds(new mapboxgl.LngLatBounds(startPoint, destCoords), { padding: 80 });
+
+            // ★ここが重要：ルート全体が収まるようにカメラを調整
+            const bounds = new mapboxgl.LngLatBounds();
+            bounds.extend(startPoint); // 出発地
+            bounds.extend(destCoords); // 目的地
+            
+            map.fitBounds(bounds, {
+                padding: {top: 150, bottom: 250, left: 50, right: 50}, // パネルに被らないよう余白を設定
+                duration: 1000 // 1秒かけてスムーズに移動
+            });
 
             document.getElementById('info-panel').classList.remove('hidden');
             document.getElementById('destination-name').textContent = name;
             document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
-            document.getElementById('route-duration').textContent = `${Math.round(travelTimeSec / 60)} 分`;
+            document.getElementById('route-duration').textContent = `${Math.round(route.duration / 60)} 分`;
 
+            // 出発時間の逆算処理
             const updateDepartureTime = () => {
                 const arrivalInput = document.getElementById('target-arrival-time').value;
                 const restMin = parseInt(document.getElementById('rest-time').value) || 0;
@@ -152,7 +146,7 @@ function startApp(mbToken, yhId) {
                 const [h, m] = arrivalInput.split(':');
                 const arrivalDate = new Date();
                 arrivalDate.setHours(h, m, 0);
-                const depMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
+                const depMs = arrivalDate.getTime() - (route.duration * 1000) - (restMin * 60 * 1000);
                 const d = new Date(depMs);
                 document.getElementById('calc-time').textContent = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                 document.getElementById('departure-result').style.display = 'block';
