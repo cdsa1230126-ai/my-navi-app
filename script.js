@@ -33,7 +33,7 @@ function startApp(mbToken, yhId) {
     let destinationMarker = null;
     let isFirstLocation = true;
 
-    // --- 現在地取得ロジック（表示の確実性をアップ） ---
+    // --- 現在地取得ロジック ---
     if (!navigator.geolocation) {
         statusEl.textContent = "❌ 位置情報非対応";
         statusEl.style.color = "red";
@@ -42,9 +42,8 @@ function startApp(mbToken, yhId) {
             p => {
                 currentLocation = [p.coords.longitude, p.coords.latitude];
                 
-                // ★ピンが立ったら、即座に表示を「取得済み」にする
-                statusEl.textContent = "✅ 現在地を取得済み";
-                statusEl.style.color = "#007bff";
+                // ★【ここを修正】ピンが立ったらステータス表示を消す
+                statusEl.style.display = 'none'; 
                 
                 if (!currentPosMarker) {
                     currentPosMarker = new mapboxgl.Marker({ color: '#007bff' })
@@ -64,8 +63,9 @@ function startApp(mbToken, yhId) {
                 }
             },
             e => {
-                // すでに一度でも取得できていれば（ピンがあれば）、エラー表示で上書きしない
+                // まだ一度も取得できていない時だけエラーを表示
                 if (!currentLocation) {
+                    statusEl.style.display = 'inline-block'; // エラー時は再表示
                     let msg = "❌ 現在地を探しています...";
                     if (e.code === 1) msg = "❌ 位置許可をオンにしてください";
                     statusEl.textContent = msg;
