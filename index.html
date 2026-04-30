@@ -9,47 +9,55 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
   <div id="api-config-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3>初期設定</h3>
-      <p>APIキーを保存します。</p>
+      <p>APIキーをブラウザに保存します。</p>
       <input type="text" id="mapbox-token-input" placeholder="Mapbox Token" />
       <input type="text" id="yahoo-id-input" placeholder="Yahoo! App ID" />
-      <button id="save-api-keys">開始</button>
+      <button id="save-api-keys">設定を保存して開始</button>
     </div>
   </div>
 
   <div id="search-container">
     <input type="text" id="search-box" placeholder="目的地を検索（例：東京タワー）" autocomplete="off" />
-    <div id="location-status" style="display:none; margin-top:5px; padding:5px 10px; background:white; border-radius:5px; font-size:12px; color:red;"></div>
-    <div id="search-loader" class="hidden"><span class="spinner"></span> 探索中...</div>
-    <div id="suggestions-container" class="hidden"><ul id="suggestions"></ul></div>
+    <div id="search-loader" class="hidden">
+      <span class="spinner"></span> 探索中...
+    </div>
+    <div id="suggestions-container" class="hidden">
+      <ul id="suggestions"></ul>
+    </div>
   </div>
 
   <div id="map"></div>
 
-  <div id="info-panel" class="hidden">
-    <h2 id="destination-name">目的地</h2>
-    
-    <div style="background: #f0f7ff; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-        <label style="font-size: 0.8em; color: #555;">到着希望時刻</label><br>
-        <input type="time" id="target-arrival-time" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-        
-        <label style="font-size: 0.8em; color: #555; margin-top: 8px; display: block;">休憩時間（分）</label>
-        <input type="number" id="rest-time" value="0" min="0" step="5" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-    </div>
-    
-    <div id="departure-result" style="text-align: center; margin: 10px 0; padding: 10px; background: #fff0f0; border-radius: 8px; border: 2px solid #ff4500; display: none;">
-        <div style="font-size: 0.7em; color: #ff4500; font-weight: bold;">推奨出発時間</div>
-        <div id="calc-time" style="font-size: 1.6em; font-weight: bold; color: #d00;">--:--</div>
-    </div>
+  <div id="route-info-container" class="hidden">
+    <div class="panel-content">
+      <strong id="destination-name"></strong>
+      
+      <div class="calc-section">
+        <div class="input-row">
+          <label>到着希望</label>
+          <input type="time" id="target-arrival-time">
+        </div>
+        <div class="input-row">
+          <label>休憩(分)</label>
+          <input type="number" id="rest-time" value="0" min="0" step="5">
+        </div>
+        <div id="departure-result" class="hidden">
+          推奨出発: <span id="calc-time">--:--</span>
+        </div>
+      </div>
 
-    <p style="font-size: 0.9em; margin: 5px 0;">距離: <span id="route-distance" style="font-weight: bold;">--</span> / 所要時間: <span id="route-duration" style="font-weight: bold;">--</span></p>
-    
-    <div style="display: flex; gap: 10px; margin-top: 10px;">
-        <button id="close-panel" style="flex: 1; padding: 10px; border-radius: 8px; border: none; background: #eee;">閉じる</button>
-        <button onclick="localStorage.clear(); location.reload();" style="flex: 1; padding: 10px; border-radius: 8px; border: none; background: #666; color: white;">設定リセット</button>
+      <div class="stats-row">
+        <span>距離: <span id="route-distance"></span></span>
+        <span>所要: <span id="route-duration"></span></span>
+      </div>
+      
+      <div class="button-row">
+        <button id="close-btn">閉じる</button>
+        <button id="reset-btn" onclick="localStorage.clear(); location.reload();">設定リセット</button>
+      </div>
     </div>
   </div>
 

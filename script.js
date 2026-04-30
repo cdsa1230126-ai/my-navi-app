@@ -1,8 +1,9 @@
 const mapboxToken = localStorage.getItem('mapbox_user_token');
 const yahooAppId = localStorage.getItem('yahoo_app_id');
+const modal = document.getElementById('api-config-modal');
 
 if (!mapboxToken || !yahooAppId) {
-    document.getElementById('api-config-modal').classList.remove('hidden');
+    modal.classList.remove('hidden');
 } else {
     startApp(mapboxToken, yahooAppId);
 }
@@ -26,51 +27,35 @@ function startApp(mbToken, yhId) {
         zoom: 13
     });
 
-    let currentLocation = null;
-    let currentPosMarker = null;
-    let destinationMarker = null;
-    let isFirstLocation = true;
-
-    const statusEl = document.getElementById('location-status');
-
-    // 現在地監視
-    navigator.geolocation.watchPosition(p => {
-        currentLocation = [p.coords.longitude, p.coords.latitude];
-        if (statusEl) statusEl.style.display = 'none';
-
-        if (!currentPosMarker) {
-            currentPosMarker = new mapboxgl.Marker({ color: '#007bff' }).setLngLat(currentLocation).addTo(map);
-        } else {
-            currentPosMarker.setLngLat(currentLocation);
-        }
-
-        if (isFirstLocation) {
-            map.flyTo({ center: currentLocation, zoom: 14, essential: true });
-            isFirstLocation = false;
-        }
-    }, e => {
-        if (!currentLocation && statusEl) {
-            statusEl.style.display = 'block';
-            statusEl.textContent = "📍 現在地を取得できません。位置情報を許可してください。";
-        }
-    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
-
-    // Yahoo!検索
     const searchBox = document.getElementById('search-box');
     const searchLoader = document.getElementById('search-loader');
     const suggestionsContainer = document.getElementById('suggestions-container');
     const suggestionsList = document.getElementById('suggestions');
 
-    let searchTimeout = null;
+    let currentLocation = null;
+    let currentPosMarker = null; // 現在地ピン
+    let destinationMarker = null; // 目的地ピン
+
+    // 現在地を監視してピンを立てる
+    navigator.geolocation.watchPosition(p => {
+        currentLocation = [p.coords.longitude, p.coords.latitude];
+        if (!currentPosMarker) {
+            currentPosMarker = new mapboxgl.Marker({ color: '#007bff' }).setLngLat(currentLocation).addTo(map);
+        } else {
+            currentPosMarker.setLngLat(currentLocation);
+        }
+    }, null, { enableHighAccuracy: true });
+
+    let timeout = null;
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.trim();
-        clearTimeout(searchTimeout);
+        clearTimeout(timeout);
         if (!query) {
             suggestionsContainer.classList.add('hidden');
             return;
         }
 
-        searchTimeout = setTimeout(() => {
+        timeout = setTimeout(() => {
             searchLoader.classList.remove('hidden');
             const yahooUrl = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yhId}&query=${encodeURIComponent(query)}&output=json&callback=handleYahooResults`;
             const script = document.createElement('script');
@@ -88,78 +73,80 @@ function startApp(mbToken, yhId) {
         suggestionsContainer.classList.remove('hidden');
         data.Feature.forEach(f => {
             const coords = f.Geometry.Coordinates.split(',');
+            const lng = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+
             const li = document.createElement('li');
             li.innerHTML = `<strong>📍 ${f.Name}</strong><br><small>${f.Property.Address}</small>`;
             li.onclick = () => {
                 searchBox.value = f.Name;
                 suggestionsContainer.classList.add('hidden');
-                drawRoute(f.Name, [parseFloat(coords[0]), parseFloat(coords[1])]);
+                drawRoute(f.Name, [lng, lat]);
             };
             suggestionsList.appendChild(li);
         });
     };
 
     async function drawRoute(name, destCoords) {
-        if (!currentLocation) return alert("現在地を取得中です。");
+        if (!currentLocation) return alert("現在地を取得中です...");
 
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            const route = data.routes[0];
-            const travelTimeSec = route.duration;
+        const res = await fetch(url);
+        const data = await res.json();
+        const route = data.routes[0];
+        const durationSec = route.duration;
 
-            // ルート描画
-            if (map.getSource('route')) {
-                map.removeLayer('route');
-                map.removeSource('route');
-            }
-            map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
-            map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
+        if (map.getSource('route')) {
+            map.removeLayer('route');
+            map.removeSource('route');
+        }
+        map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
 
-            // 目的地マーカー
-            if (destinationMarker) destinationMarker.remove();
-            destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
+        if (destinationMarker) destinationMarker.remove();
+        destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
+        
+        // ★ここが解決策！パディングの下側を大きく（350px）空ける
+        const bounds = new mapboxgl.LngLatBounds()
+            .extend(currentLocation)
+            .extend(destCoords);
 
-            // ★重要：出発地(青)と目的地(赤)が両方収まるように調整
-            const bounds = new mapboxgl.LngLatBounds()
-                .extend(currentLocation)
-                .extend(destCoords);
+        map.fitBounds(bounds, {
+            padding: {top: 100, bottom: 350, left: 60, right: 60},
+            duration: 1500 // 1.5秒かけてスムーズにズーム
+        });
 
-            map.fitBounds(bounds, {
-                padding: {top: 80, bottom: 350, left: 60, right: 60}, // パネルが被る下側の余白を大きく確保
-                duration: 1200
-            });
+        // 情報更新
+        document.getElementById('destination-name').textContent = name;
+        document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
+        document.getElementById('route-duration').textContent = `${Math.round(durationSec / 60)} 分`;
+        document.getElementById('route-info-container').classList.remove('hidden');
 
-            // パネル表示と計算
-            document.getElementById('info-panel').classList.remove('hidden');
-            document.getElementById('destination-name').textContent = name;
-            document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
-            document.getElementById('route-duration').textContent = `${Math.round(travelTimeSec / 60)} 分`;
+        // 逆算タイマーロジック
+        const updateCalc = () => {
+            const arrivalTime = document.getElementById('target-arrival-time').value;
+            const restMin = parseInt(document.getElementById('rest-time').value) || 0;
+            if (!arrivalTime) return;
 
-            const updateCalc = () => {
-                const arrival = document.getElementById('target-arrival-time').value;
-                const rest = parseInt(document.getElementById('rest-time').value) || 0;
-                if (!arrival) return;
+            const [h, m] = arrivalTime.split(':');
+            const arrivalDate = new Date();
+            arrivalDate.setHours(h, m, 0);
 
-                const [h, m] = arrival.split(':');
-                const arrivalDate = new Date();
-                arrivalDate.setHours(h, m, 0);
+            // 出発時間 = 到着時間 - 移動時間 - 休憩
+            const depMs = arrivalDate.getTime() - (durationSec * 1000) - (restMin * 60 * 1000);
+            const d = new Date(depMs);
+            
+            document.getElementById('calc-time').textContent = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            document.getElementById('departure-result').classList.remove('hidden');
+        };
 
-                // 出発時間 = 到着時間 - 走行時間 - 休憩時間
-                const depMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (rest * 60 * 1000);
-                const d = new Date(depMs);
-                document.getElementById('calc-time').textContent = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                document.getElementById('departure-result').style.display = 'block';
-            };
-
-            document.getElementById('target-arrival-time').onchange = updateCalc;
-            document.getElementById('rest-time').oninput = updateCalc;
-            updateCalc();
-
-        } catch (e) { console.error(e); }
+        document.getElementById('target-arrival-time').onchange = updateCalc;
+        document.getElementById('rest-time').oninput = updateCalc;
+        updateCalc();
     }
 
-    document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
+    document.getElementById('close-btn').onclick = () => {
+        document.getElementById('route-info-container').classList.add('hidden');
+    };
 }
