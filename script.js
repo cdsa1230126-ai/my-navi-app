@@ -35,9 +35,17 @@ function startApp(mbToken, yhId) {
     let currentLocation = null;
     let destinationMarker = null;
 
-    navigator.geolocation.watchPosition(p => {
-        currentLocation = [p.coords.longitude, p.coords.latitude];
-    }, null, { enableHighAccuracy: true });
+    // 現在地取得（失敗してもエラーで止めない）
+    navigator.geolocation.watchPosition(
+        p => {
+            currentLocation = [p.coords.longitude, p.coords.latitude];
+            console.log("現在地を取得しました:", currentLocation);
+        },
+        e => {
+            console.warn("位置情報の取得に失敗しました。地図の中心を使用します。", e.message);
+        },
+        { enableHighAccuracy: true }
+    );
 
     let timeout = null;
     searchBox.addEventListener('input', (e) => {
@@ -82,70 +90,88 @@ function startApp(mbToken, yhId) {
     };
 
     async function drawRoute(name, destCoords) {
-        if (!currentLocation) return alert("現在地を取得中です...");
-
-        // Mapbox Directions APIでルート取得
-        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
-        
-        const res = await fetch(url);
-        const data = await res.json();
-        const route = data.routes[0];
-        const travelTimeSec = route.duration; 
-
-        // 地図にルートを描画
-        if (map.getSource('route')) {
-            map.removeLayer('route');
-            map.removeSource('route');
+        // 現在地が取れていない場合は地図の中心を起点にする
+        let startPoint = currentLocation;
+        if (!startPoint) {
+            const center = map.getCenter();
+            startPoint = [center.lng, center.lat];
         }
-        map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
-        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
 
-        if (destinationMarker) destinationMarker.remove();
-        destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
+        // Mapbox Directions APIでルート取得 (交通量考慮プロファイルを使用)
+        const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${startPoint[0]},${startPoint[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mbToken}`;
         
-        map.fitBounds(new mapboxgl.LngLatBounds(currentLocation, destCoords), { padding: 80 });
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            if (!data.routes || data.routes.length === 0) {
+                alert("ルートが見つかりませんでした。");
+                return;
+            }
 
-        // --- 逆算タイマー機能 ---
-        const infoPanel = document.getElementById('info-panel');
-        infoPanel.classList.remove('hidden');
+            const route = data.routes[0];
+            const travelTimeSec = route.duration; 
 
-        document.getElementById('destination-name').textContent = name;
-        document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
-        document.getElementById('route-duration').textContent = `${Math.round(travelTimeSec / 60)} 分`;
+            // 地図にルートを描画
+            if (map.getSource('route')) {
+                map.removeLayer('route');
+                map.removeSource('route');
+            }
+            map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
+            map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#007bff', 'line-width': 6 } });
 
-        const updateDepartureTime = () => {
-            const arrivalInput = document.getElementById('target-arrival-time').value;
-            const restMin = parseInt(document.getElementById('rest-time').value) || 0;
-            const resultBox = document.getElementById('departure-result');
-            const calcDisplay = document.getElementById('calc-time');
+            if (destinationMarker) destinationMarker.remove();
+            destinationMarker = new mapboxgl.Marker({ color: 'red' }).setLngLat(destCoords).addTo(map);
+            
+            map.fitBounds(new mapboxgl.LngLatBounds(startPoint, destCoords), { padding: 80 });
 
-            if (!arrivalInput) return;
+            // --- 逆算タイマー機能 ---
+            const infoPanel = document.getElementById('info-panel');
+            infoPanel.classList.remove('hidden');
 
-            const [hours, minutes] = arrivalInput.split(':');
-            const arrivalDate = new Date();
-            arrivalDate.setHours(hours, minutes, 0);
+            document.getElementById('destination-name').textContent = name;
+            document.getElementById('route-distance').textContent = `${(route.distance / 1000).toFixed(1)} km`;
+            document.getElementById('route-duration').textContent = `${Math.round(travelTimeSec / 60)} 分`;
 
-            // 逆算計算
-            const departureTimeMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
-            const departureDate = new Date(departureTimeMs);
+            // 逆算処理の定義
+            const updateDepartureTime = () => {
+                const arrivalInput = document.getElementById('target-arrival-time').value;
+                const restMin = parseInt(document.getElementById('rest-time').value) || 0;
+                const resultBox = document.getElementById('departure-result');
+                const calcDisplay = document.getElementById('calc-time');
 
-            const depH = String(departureDate.getHours()).padStart(2, '0');
-            const depM = String(departureDate.getMinutes()).padStart(2, '0');
+                if (!arrivalInput) return;
 
-            calcDisplay.textContent = `${depH}:${depM}`;
-            resultBox.style.display = 'block';
-        };
+                const [hours, minutes] = arrivalInput.split(':');
+                const arrivalDate = new Date();
+                arrivalDate.setHours(hours, minutes, 0);
 
-        // イベント登録
-        document.getElementById('target-arrival-time').onchange = updateDepartureTime;
-        document.getElementById('rest-time').oninput = updateDepartureTime;
-        
-        // 即時計算
-        updateDepartureTime();
+                // 逆算計算：到着希望時刻 - 走行時間(秒) - 休憩(ミリ秒)
+                const departureTimeMs = arrivalDate.getTime() - (travelTimeSec * 1000) - (restMin * 60 * 1000);
+                const departureDate = new Date(departureTimeMs);
+
+                const depH = String(departureDate.getHours()).padStart(2, '0');
+                const depM = String(departureDate.getMinutes()).padStart(2, '0');
+
+                calcDisplay.textContent = `${depH}:${depM}`;
+                resultBox.style.display = 'block';
+            };
+
+            // 入力イベントの登録（目的地変更のたびに最新の走行時間で更新されるようにする）
+            document.getElementById('target-arrival-time').onchange = updateDepartureTime;
+            document.getElementById('rest-time').oninput = updateDepartureTime;
+            
+            // 初回計算
+            updateDepartureTime();
+
+        } catch (error) {
+            console.error("ルート取得エラー:", error);
+            alert("ルートの取得に失敗しました。");
+        }
     }
 
     // パネルを閉じる処理
-    document.getElementById('close-panel').addEventListener('click', () => {
+    document.getElementById('close-panel').onclick = () => {
         document.getElementById('info-panel').classList.add('hidden');
-    });
+    };
 }
