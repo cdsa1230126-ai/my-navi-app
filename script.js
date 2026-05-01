@@ -1,20 +1,24 @@
-// APIキーの管理
+// localStorageからユーザーが入力したキーを取得
 const mbToken = localStorage.getItem('mapbox_user_token');
 const yhId = localStorage.getItem('yahoo_app_id');
 
+// キーがない場合は入力画面を表示
 if (!mbToken || !yhId) {
     document.getElementById('api-config-modal').classList.remove('hidden');
 } else {
     startApp(mbToken, yhId);
 }
 
+// ユーザーが入力を完了した時の処理
 document.getElementById('save-api-keys').onclick = () => {
     const mb = document.getElementById('mapbox-token-input').value.trim();
     const yh = document.getElementById('yahoo-id-input').value.trim();
     if (mb && yh) {
         localStorage.setItem('mapbox_user_token', mb);
         localStorage.setItem('yahoo_app_id', yh);
-        location.reload();
+        location.reload(); // 再読み込みして地図を開始
+    } else {
+        alert("両方のキーを入力してください");
     }
 };
 
@@ -34,7 +38,7 @@ function startApp(mapboxToken, yahooId) {
     let restMarkers = [];
     let currentRouteData = null;
 
-    // 渋滞表示レイヤー
+    // 渋滞レイヤー
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
@@ -53,7 +57,6 @@ function startApp(mapboxToken, yahooId) {
         this.innerHTML = is3D ? '2D' : '3D';
     };
 
-    // 現在地監視
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
         if (!currentMarker) currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
@@ -107,7 +110,7 @@ function startApp(mapboxToken, yahooId) {
         updatePanelUI(name);
     }
 
-    // 休憩地点の検索とピン表示
+    // 休憩ピン
     async function showRestAreas() {
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
@@ -115,8 +118,8 @@ function startApp(mapboxToken, yahooId) {
         const coords = currentRouteData.geometry.coordinates;
         for (let i = 1; i <= count; i++) {
             const pt = coords[Math.floor((coords.length / (count + 1)) * i)];
-            const cbName = `rest_cb_${i}_${Date.now()}`;
-            window[cbName] = (d) => {
+            const cb = `rest_cb_${i}_${Date.now()}`;
+            window[cb] = (d) => {
                 if (d.Feature) {
                     const sc = d.Feature[0].Geometry.Coordinates.split(',');
                     const m = new mapboxgl.Marker({ color: '#FFD700' }).setLngLat([parseFloat(sc[0]), parseFloat(sc[1])]).addTo(map);
@@ -124,7 +127,7 @@ function startApp(mapboxToken, yahooId) {
                 }
             };
             const s = document.createElement('script');
-            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cbName}`;
+            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cb}`;
             document.body.appendChild(s);
         }
     }
@@ -154,13 +157,11 @@ function startApp(mapboxToken, yahooId) {
     document.getElementById('start-nav').onclick = () => {
         if (!currentRouteData) return;
         showRestAreas();
-        
-        // 1. UI切り替え
         document.getElementById('pre-nav-content').classList.add('hidden');
         document.getElementById('nav-active-content').classList.remove('hidden');
         document.getElementById('search-container').style.transform = 'translateY(-120px)';
         
-        // 2. 左上バナー更新 [NEW]
+        // 左上バナー更新
         const banner = document.getElementById('nav-banner');
         banner.classList.remove('hidden');
         const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
@@ -169,15 +170,14 @@ function startApp(mapboxToken, yahooId) {
         const nextRest = Math.round((currentRouteData.duration / 60) / (rCnt + 1));
         document.getElementById('banner-next-rest').textContent = `${nextRest}分`;
 
-        // 3. パネル情報
         document.getElementById('nav-remaining-time').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
 
-        // 4. ナビ視点へ
-        map.flyTo({ center: currentLocation, zoom: 17, pitch: 60, essential: true });
-        document.getElementById('view-toggle-btn').innerHTML = '3D';
+        // 案内開始時は真上からの視点を維持（ pitch: 0 ）
+        map.flyTo({ center: currentLocation, zoom: 17, pitch: 0, essential: true });
+        document.getElementById('view-toggle-btn').innerHTML = '2D';
     };
 
-    // 終了
+    // 案内終了
     document.getElementById('stop-nav').onclick = () => {
         document.getElementById('nav-banner').classList.add('hidden');
         document.getElementById('search-container').style.transform = 'translateY(0)';
