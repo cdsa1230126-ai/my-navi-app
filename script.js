@@ -58,15 +58,32 @@ function startApp(token, yid) {
         this.innerHTML = is3D ? '2D' : '3D';
     };
 
-    // 現在地取得
+   // 現在地取得と自動追従（初回のみ）
+    let isFirstLocate = true; // 初回判定用フラグ
+
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
+        
+        // マーカーの更新
         if (!currentMarker) {
             currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
         } else {
             currentMarker.setLngLat(currentLocation);
         }
-    }, null, { enableHighAccuracy: true });
+
+        // 【追加】アプリ起動後、最初に見つかった現在地へ自動でジャンプ
+        if (isFirstLocate) {
+            map.flyTo({
+                center: currentLocation,
+                zoom: 15,
+                speed: 1.5,
+                essential: true
+            });
+            isFirstLocate = false; // 二回目以降は自動で飛ばないようにする
+        }
+    }, (err) => {
+        console.error("位置情報の取得に失敗しました:", err);
+    }, { enableHighAccuracy: true });
 
     document.getElementById('recenter-btn').onclick = () => { 
         if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 }); 
