@@ -1,11 +1,17 @@
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
-body { overflow: hidden; background: #f0f0f0; }
-#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+:root {
+    --movi-blue: #007aff;
+    --movi-bg: #f2f2f7;
+    --movi-card: #ffffff;
+    --movi-orange: #ff9500;
+}
 
-/* 検索ボックス & スイッチ */
-#search-container { position: absolute; top: 10px; width: 90%; left: 5%; z-index: 10; transition: transform 0.3s; }
-.search-bar { background: white; border-radius: 25px; display: flex; padding: 12px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
-.search-bar input { border: none; width: 100%; outline: none; font-size: 16px; }
+body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; background: var(--movi-bg); overflow: hidden; }
+#map { width: 100%; height: 100%; position: absolute; }
+
+/* 検索 & スイッチ */
+#search-container { position: absolute; top: 15px; left: 10px; right: 10px; z-index: 2000; }
+.search-bar { background: white; border-radius: 25px; display: flex; padding: 12px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); align-items: center; }
+#search-box { border: none; outline: none; font-size: 16px; width: 100%; margin-left: 10px; }
 
 .route-options {
     background: rgba(255, 255, 255, 0.95);
@@ -18,41 +24,44 @@ body { overflow: hidden; background: #f0f0f0; }
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-/* スイッチのCSS */
+/* スイッチ */
 .switch { position: relative; width: 44px; height: 22px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 22px; }
 .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-input:checked + .slider { background-color: #007aff; }
+input:checked + .slider { background-color: var(--movi-blue); }
 input:checked + .slider:before { transform: translateX(22px); }
-#route-type-label { font-size: 13px; font-weight: bold; color: #333; }
 
-/* 検索候補 */
-#suggestions-container { background: white; margin-top: 5px; border-radius: 15px; overflow: hidden; }
-#suggestions { list-style: none; max-height: 200px; overflow-y: auto; }
-#suggestions li { padding: 12px 20px; border-bottom: 1px solid #eee; cursor: pointer; }
+/* パネル & 設定 */
+#info-panel {
+    position: absolute; bottom: 0; left: 0; right: 0; background: var(--movi-card); 
+    border-radius: 24px 24px 0 0; padding: 15px 20px 30px 20px; z-index: 3000;
+    box-shadow: 0 -5px 30px rgba(0,0,0,0.1);
+}
+.panel-handle { width: 40px; height: 5px; background: #e5e5ea; border-radius: 3px; margin: 0 auto 15px auto; }
 
-/* インフォパネル */
-#info-panel { position: absolute; bottom: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; z-index: 20; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); }
-.panel-header { height: 30px; display: flex; justify-content: center; align-items: center; position: relative; }
-#drag-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; }
-#close-panel { position: absolute; right: 15px; background: none; border: none; font-size: 24px; color: #999; }
-.panel-content { padding: 0 20px 30px; }
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.config-item label { font-size: 11px; color: #8e8e93; font-weight: bold; display: block; margin-bottom: 5px; }
+.config-item select, .config-item input {
+    width: 100%; padding: 12px; border: 1px solid #e5e5ea; border-radius: 12px;
+    background: #f9f9fb; font-size: 15px; font-weight: 500; outline: none;
+}
 
-/* UI要素 */
-.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
-.config-item label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
-.config-item input, .config-item select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
-.primary-btn { width: 100%; padding: 15px; background: #007aff; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; }
-.danger-btn { padding: 10px 20px; background: #ff3b30; color: white; border: none; border-radius: 8px; }
+/* 🆕 モダンなボタンデザイン */
+.btn-primary {
+    flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px;
+    border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3); transition: all 0.2s;
+}
+.btn-primary:active { transform: scale(0.96); background: #005ecb; }
 
-/* ナビバナー */
-#nav-banner { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 12px; border-radius: 12px; display: flex; gap: 15px; z-index: 30; }
-.banner-divider { width: 1px; background: rgba(255,255,255,0.3); }
-.value { font-size: 18px; font-weight: bold; display: block; }
-.highlight { color: #ffeb3b; }
+.btn-secondary { flex: 1; background: #f2f2f7; color: #1c1c1e; border: none; border-radius: 16px; cursor: pointer; font-weight: bold; }
+.panel-footer { display: flex; gap: 12px; }
 
-.side-controls { position: absolute; right: 15px; bottom: 120px; display: flex; flex-direction: column; gap: 10px; }
-.side-controls button { width: 45px; height: 45px; border-radius: 50%; border: none; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; }
+/* 既存ボタン・バナー */
+.map-ctrl-btn { position: absolute; right: 16px; width: 50px; height: 50px; border-radius: 25px; background: white; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); font-weight: bold; z-index: 4000; }
+#recenter-btn { bottom: 120px; }
+#view-toggle-btn { bottom: 180px; }
 
+#nav-banner { position: absolute; top: 120px; left: 15px; z-index: 5000; background: rgba(255, 255, 255, 0.9); padding: 12px 20px; border-radius: 18px; display: flex; gap: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
 .hidden { display: none !important; }
