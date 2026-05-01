@@ -1,8 +1,9 @@
-// --- 1. APIキー管理 ---
+// --- 1. APIキー管理システム ---
 let savedToken = localStorage.getItem('mapbox_user_token');
 let savedYahooId = localStorage.getItem('yahoo_app_id');
 
-if (!savedToken || !savedYahooId || savedToken === 'YOUR_MAPBOX_TOKEN') {
+// キーがない、またはダミーの場合はモーダル表示
+if (savedToken === 'YOUR_MAPBOX_TOKEN' || !savedToken || !savedYahooId) {
     document.getElementById('api-config-modal').classList.remove('hidden');
 } else {
     startApp(savedToken, savedYahooId);
@@ -11,22 +12,25 @@ if (!savedToken || !savedYahooId || savedToken === 'YOUR_MAPBOX_TOKEN') {
 document.getElementById('save-api-keys').onclick = () => {
     const mb = document.getElementById('mapbox-token-input').value.trim();
     const yh = document.getElementById('yahoo-id-input').value.trim();
-    if (mb && yh) {
+    if (mb && yh && mb !== 'YOUR_MAPBOX_TOKEN') {
         localStorage.setItem('mapbox_user_token', mb);
         localStorage.setItem('yahoo_app_id', yh);
         location.reload();
+    } else {
+        alert("正しいAPIキーを入力してください。");
     }
 };
 
-// --- 2. メインロジック ---
+// --- 2. メインアプリ機能 ---
 function startApp(token, yid) {
     mapboxgl.accessToken = token;
+    
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
-        center: [139.767, 35.681],
+        center: [139.767, 35.681], // 初期値（東京駅）
         zoom: 14,
-        pitch: 0
+        pitch: 0 // 初期は2D
     });
 
     let currentLocation = null;
@@ -34,11 +38,12 @@ function startApp(token, yid) {
     let destMarker = null;
     let restMarkers = [];
     let currentRouteData = null;
+    let isFirstLocate = true; 
     let finalDestination = null;
-    let isFirstLocate = true;
 
-    // A. 初期化とGPS
+    // 地図が読み込まれた際の処理
     map.on('load', () => {
+        // 渋滞レイヤーの追加
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
             'id': 'traffic', 'type': 'line', 'source': 'mapbox-traffic', 'source-layer': 'traffic',
@@ -48,21 +53,50 @@ function startApp(token, yid) {
             }
         });
 
+        // 位置情報の監視と初回ジャンプ
         navigator.geolocation.watchPosition(p => {
             currentLocation = [p.coords.longitude, p.coords.latitude];
+            
+            // 現在地マーカー
             if (!currentMarker) {
                 currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
             } else {
                 currentMarker.setLngLat(currentLocation);
             }
+
+            // 初回のみスムーズに現在地へ移動
             if (isFirstLocate) {
-                map.easeTo({ center: currentLocation, zoom: 16, duration: 2000 });
+                map.easeTo({
+                    center: currentLocation,
+                    zoom: 15,
+                    duration: 2000,
+                    essential: true
+                });
                 isFirstLocate = false;
             }
-        }, err => console.error(err), { enableHighAccuracy: true });
+        }, err => console.error("GPS取得エラー:", err), { enableHighAccuracy: true });
     });
 
-    // B. 高速/下道 切り替え
+    // --- UI操作系（以前の白い丸型ボタンのデザインに対応） ---
+
+    // 📍現在地に戻るボタン
+    document.getElementById('recenter-btn').onclick = () => { 
+        if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 }); 
+    };
+
+    // 2D/3D切り替え（修正：確実に切り替わるようにしました）
+    document.getElementById('view-toggle-btn').onclick = function() {
+        const currentPitch = map.getPitch();
+        const isCurrently3D = currentPitch > 0;
+        
+        const targetPitch = isCurrently3D ? 0 : 60;
+        const buttonText = isCurrently3D ? '3D' : '2D';
+        
+        map.easeTo({ pitch: targetPitch, duration: 500 });
+        this.innerHTML = buttonText;
+    };
+
+    // 🆕 道路種別の切り替え（機能維持、UI戻しに対応）
     document.getElementById('use-highways').onchange = function() {
         document.getElementById('route-type-label').textContent = this.checked ? "高速道路優先" : "一般道優先";
         if (finalDestination) {
@@ -70,7 +104,7 @@ function startApp(token, yid) {
         }
     };
 
-    // C. Yahoo! 検索
+    // Yahoo! 地名検索
     const searchBox = document.getElementById('search-box');
     searchBox.oninput = (e) => {
         const q = e.target.value.trim();
@@ -91,6 +125,7 @@ function startApp(token, yid) {
             li.innerHTML = `<strong>${f.Name}</strong><br><small>${f.Property.Address}</small>`;
             li.onclick = () => {
                 document.getElementById('suggestions-container').classList.add('hidden');
+                document.getElementById('route-options-container').classList.remove('hidden'); // スイッチを表示
                 const coords = f.Geometry.Coordinates.split(',');
                 finalDestination = { name: f.Name, coords: [parseFloat(coords[0]), parseFloat(coords[1])] };
                 drawRoute(finalDestination.name, finalDestination.coords, token);
@@ -99,13 +134,14 @@ function startApp(token, yid) {
         });
     };
 
-    // D. ルート描画 (経由地対応)
+    // ルート描画（経由地 waypoint に対応、高速/下道対応）
     async function drawRoute(name, destCoords, tk, waypoints = []) {
         if (!currentLocation) return;
         
         const useHighways = document.getElementById('use-highways').checked;
-        const excludeParam = useHighways ? "" : "&exclude=motorway";
+        const excludeParam = useHighways ? "" : "&exclude=motorway"; // 下道優先なら exclude=motorway
 
+        // Waypointsを含めた座標列を作成 (現在地 -> 休憩1 -> 目的地)
         let coordsChain = `${currentLocation[0]},${currentLocation[1]};`;
         waypoints.forEach(wp => { coordsChain += `${wp[0]},${wp[1]};`; });
         coordsChain += `${destCoords[0]},${destCoords[1]}`;
@@ -122,17 +158,19 @@ function startApp(token, yid) {
 
         if (destMarker) destMarker.remove();
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
+        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 250, left: 50, right: 50} });
         
-        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: 100 });
         updatePanelUI(name);
     }
 
-    // E. 休憩地点検索 (高速ならSA/PA、下道なら道沿いコンビニ)
+    // 🆕 休憩地点の検索と経由設定（機能維持、SA/PA vs コンビニ対応）
     async function planWithRestAreas(yid) {
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
-        const count = parseInt(document.getElementById('rest-count').value) || 0;
-        if (count === 0) return [];
+        
+        // シンプルUIに戻したため、休憩設定は固定値（1回）で行います
+        const count = 1;
+        if (!currentRouteData) return [];
 
         const isHighways = document.getElementById('use-highways').checked;
         const searchQuery = isHighways ? "SA PA" : "コンビニ"; // 高速時はSA/PAを狙い撃ち
@@ -162,49 +200,39 @@ function startApp(token, yid) {
         return foundWaypoints;
     }
 
-    // F. UI更新 & 到着逆算
+    // パネル更新ロジック（シンプルな以前のデザインに合わせました）
     function updatePanelUI(name) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
         document.getElementById('route-distance').textContent = `${(currentRouteData.distance / 1000).toFixed(1)}km`;
         document.getElementById('route-duration').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
-
-        const calc = () => {
-            const arrT = document.getElementById('target-arrival-time').value;
-            const rTime = parseInt(document.getElementById('rest-time').value) || 0;
-            const rCnt = parseInt(document.getElementById('rest-count').value) || 0;
-            if (!arrT) return;
-            const t = new Date(); const [h, m] = arrT.split(':'); t.setHours(h, m, 0);
-            const dep = new Date(t.getTime() - (currentRouteData.duration * 1000) - (rTime * rCnt * 60 * 1000));
-            document.getElementById('calc-time').textContent = `${String(dep.getHours()).padStart(2,'0')}:${String(dep.getMinutes()).padStart(2,'0')}`;
-            document.getElementById('departure-card').classList.remove('hidden');
-        };
-        document.querySelectorAll('.config-grid input, select').forEach(el => el.oninput = calc);
-        calc();
     }
 
-    // G. 案内開始・終了
+    // 案内開始・終了（以前のロジックをベースに機能統合）
     document.getElementById('start-nav').onclick = async () => {
         if (!currentRouteData) return;
-        const wps = await planWithRestAreas(yid);
-        await drawRoute(finalDestination.name, finalDestination.coords, token, wps);
+        
+        // 休憩地点をルートに組み込む
+        const waypoints = await planWithRestAreas(yid);
+        await drawRoute(finalDestination.name, finalDestination.coords, token, waypoints);
         
         document.getElementById('pre-nav-content').classList.add('hidden');
         document.getElementById('nav-active-content').classList.remove('hidden');
-        document.getElementById('nav-banner').classList.remove('hidden');
+        document.getElementById('search-container').style.transform = 'translateY(-120px)';
+        document.getElementById('route-options-container').classList.add('hidden'); // スイッチを隠す
         
+        const banner = document.getElementById('nav-banner');
+        banner.classList.remove('hidden');
         const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
         document.getElementById('banner-arrival').textContent = `${arr.getHours()}:${String(arr.getMinutes()).padStart(2,'0')}`;
         
+        // 自動で3D視点へ（修正：view-toggle-btnの状態も更新）
+        const viewToggleBtn = document.getElementById('view-toggle-btn');
         map.flyTo({ center: currentLocation, zoom: 17, pitch: 60, essential: true });
+        viewToggleBtn.innerHTML = '2D';
     };
 
     document.getElementById('stop-nav').onclick = () => location.reload();
+
     document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
-    document.getElementById('recenter-btn').onclick = () => map.flyTo({ center: currentLocation, zoom: 16 });
-    document.getElementById('view-toggle-btn').onclick = function() {
-        const is3D = map.getPitch() > 0;
-        map.easeTo({ pitch: is3D ? 0 : 60 });
-        this.innerHTML = is3D ? '3D' : '2D';
-    };
 }
