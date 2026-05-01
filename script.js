@@ -1,32 +1,34 @@
-// localStorageからユーザーが入力したキーを取得
-const mbToken = localStorage.getItem('mapbox_user_token');
-const yhId = localStorage.getItem('yahoo_app_id');
+// 1. まずlocalStorageを確認
+let mbToken = localStorage.getItem('mapbox_user_token');
+let yhId = localStorage.getItem('yahoo_app_id');
 
-// キーがない場合は入力画面を表示
+// 2. キーがない場合は入力画面を表示。ある場合はアプリ開始
 if (!mbToken || !yhId) {
     document.getElementById('api-config-modal').classList.remove('hidden');
 } else {
     startApp(mbToken, yhId);
 }
 
-// ユーザーが入力を完了した時の処理
+// 保存ボタン
 document.getElementById('save-api-keys').onclick = () => {
     const mb = document.getElementById('mapbox-token-input').value.trim();
     const yh = document.getElementById('yahoo-id-input').value.trim();
     if (mb && yh) {
         localStorage.setItem('mapbox_user_token', mb);
         localStorage.setItem('yahoo_app_id', yh);
-        location.reload(); // 再読み込みして地図を開始
+        location.reload(); // リロードしてstartAppを走らせる
     } else {
         alert("両方のキーを入力してください");
     }
 };
 
-function startApp(mapboxToken, yahooId) {
-    mapboxgl.accessToken = mapboxToken;
+function startApp(token, yid) {
+    // ここでMapboxにトークンをセット
+    mapboxgl.accessToken = token;
+
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v11',
+        style: 'mapbox://styles/mapbox/streets-v11', // ここで401が出る場合はトークンが不正
         center: [139.767, 35.681],
         zoom: 14,
         pitch: 0
@@ -38,7 +40,7 @@ function startApp(mapboxToken, yahooId) {
     let restMarkers = [];
     let currentRouteData = null;
 
-    // 渋滞レイヤー
+    // 渋滞表示
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
@@ -57,6 +59,7 @@ function startApp(mapboxToken, yahooId) {
         this.innerHTML = is3D ? '2D' : '3D';
     };
 
+    // 現在地
     navigator.geolocation.watchPosition(p => {
         currentLocation = [p.coords.longitude, p.coords.latitude];
         if (!currentMarker) currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
@@ -71,7 +74,7 @@ function startApp(mapboxToken, yahooId) {
         const q = e.target.value.trim();
         if (q.length < 2) return;
         const s = document.createElement('script');
-        s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&query=${encodeURIComponent(q)}&output=json&callback=handleResults`;
+        s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&query=${encodeURIComponent(q)}&output=json&callback=handleResults`;
         document.body.appendChild(s);
         s.onload = () => s.remove();
     };
@@ -87,15 +90,15 @@ function startApp(mapboxToken, yahooId) {
             li.onclick = () => {
                 document.getElementById('suggestions-container').classList.add('hidden');
                 const coords = f.Geometry.Coordinates.split(',');
-                drawRoute(f.Name, [parseFloat(coords[0]), parseFloat(coords[1])]);
+                drawRoute(f.Name, [parseFloat(coords[0]), parseFloat(coords[1])], token, yid);
             };
             list.appendChild(li);
         });
     };
 
-    async function drawRoute(name, destCoords) {
+    async function drawRoute(name, destCoords, tk, yid) {
         if (!currentLocation) return;
-        const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${mapboxToken}`);
+        const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${tk}`);
         const data = await res.json();
         currentRouteData = data.routes[0];
 
@@ -107,11 +110,10 @@ function startApp(mapboxToken, yahooId) {
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
         map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 400, left: 50, right: 50} });
         
-        updatePanelUI(name);
+        updatePanelUI(name, yid);
     }
 
-    // 休憩ピン
-    async function showRestAreas() {
+    async function showRestAreas(yid) {
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
         const count = parseInt(document.getElementById('rest-count').value) || 0;
@@ -127,12 +129,12 @@ function startApp(mapboxToken, yahooId) {
                 }
             };
             const s = document.createElement('script');
-            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yahooId}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cb}`;
+            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cb}`;
             document.body.appendChild(s);
         }
     }
 
-    function updatePanelUI(name) {
+    function updatePanelUI(name, yid) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
         document.getElementById('route-distance').textContent = `${(currentRouteData.distance / 1000).toFixed(1)}km`;
@@ -153,15 +155,12 @@ function startApp(mapboxToken, yahooId) {
         calc();
     }
 
-    // 案内開始！
     document.getElementById('start-nav').onclick = () => {
         if (!currentRouteData) return;
-        showRestAreas();
+        showRestAreas(yid);
         document.getElementById('pre-nav-content').classList.add('hidden');
         document.getElementById('nav-active-content').classList.remove('hidden');
         document.getElementById('search-container').style.transform = 'translateY(-120px)';
-        
-        // 左上バナー更新
         const banner = document.getElementById('nav-banner');
         banner.classList.remove('hidden');
         const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
@@ -169,15 +168,10 @@ function startApp(mapboxToken, yahooId) {
         const rCnt = parseInt(document.getElementById('rest-count').value) || 1;
         const nextRest = Math.round((currentRouteData.duration / 60) / (rCnt + 1));
         document.getElementById('banner-next-rest').textContent = `${nextRest}分`;
-
         document.getElementById('nav-remaining-time').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
-
-        // 案内開始時は真上からの視点を維持（ pitch: 0 ）
         map.flyTo({ center: currentLocation, zoom: 17, pitch: 0, essential: true });
-        document.getElementById('view-toggle-btn').innerHTML = '2D';
     };
 
-    // 案内終了
     document.getElementById('stop-nav').onclick = () => {
         document.getElementById('nav-banner').classList.add('hidden');
         document.getElementById('search-container').style.transform = 'translateY(0)';
@@ -185,7 +179,6 @@ function startApp(mapboxToken, yahooId) {
         document.getElementById('nav-active-content').classList.add('hidden');
         restMarkers.forEach(m => m.remove());
         map.easeTo({ pitch: 0 });
-        document.getElementById('view-toggle-btn').innerHTML = '2D';
     };
 
     document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
