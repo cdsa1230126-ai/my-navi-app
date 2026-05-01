@@ -1,54 +1,15 @@
-:root {
-  --movi-blue: #007aff;
-  --movi-bg: #f2f2f7;
-  --movi-card: #ffffff;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+body { overflow: hidden; background: #f0f0f0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
 
-body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 100dvh; background: var(--movi-bg); overflow: hidden; }
-#map { width: 100%; height: 100%; position: absolute; }
-
-.stat-highlight { 
-  font-size: 26px; color: var(--movi-blue); font-weight: 800; cursor: pointer; 
-  padding: 5px 10px; border-radius: 8px; background: rgba(0,122,255,0.1);
-}
-
-.map-ctrl-btn {
-  position: absolute; right: 16px; bottom: 120px; width: 54px; height: 54px; border-radius: 27px;
-  background: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 24px; z-index: 1500;
-}
-
-#search-container { position: absolute; top: 15px; left: 10px; right: 10px; z-index: 2000; }
-.search-bar { background: white; border-radius: 14px; display: flex; align-items: center; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-#search-box { border: none; outline: none; font-size: 16px; width: 100%; margin-left: 10px; }
-
-#info-panel {
-  position: absolute; bottom: 0; left: 0; right: 0; background: var(--movi-card); 
-  border-radius: 24px 24px 0 0; padding: 12px 20px 30px 20px; z-index: 3000;
-  box-shadow: 0 -5px 30px rgba(0,0,0,0.1);
-}
-.panel-handle { width: 40px; height: 5px; background: #e5e5ea; border-radius: 3px; margin: 0 auto 15px auto; }
-.panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-
-.config-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
-.config-item label { display: block; font-size: 10px; color: #8e8e93; margin-bottom: 5px; font-weight: bold; }
-.config-item input { width: 100%; padding: 12px; border: 1px solid #f2f2f7; border-radius: 12px; box-sizing: border-box; }
-
-#departure-card { background: #f0f7ff; border-radius: 18px; padding: 15px; text-align: center; margin-bottom: 15px; border: 1px solid #cce4ff; }
-#calc-time { font-size: 44px; font-weight: 900; color: #1c1c1e; margin: 5px 0; }
-
-.btn-primary { flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: bold; }
-.btn-secondary { flex: 1; background: #f2f2f7; color: #48484a; border: none; padding: 16px; border-radius: 14px; }
-.panel-footer { display: flex; gap: 12px; }
-
-#suggestions-container { background: white; border-radius: 14px; margin-top: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-height: 40vh; overflow-y: auto; }
-#suggestions li { padding: 16px; border-bottom: 1px solid #f2f2f7; list-style: none; }
-.hidden { display: none !important; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-.modal-content { background: white; padding: 30px; border-radius: 24px; width: 85%; text-align: center; }
+/* 検索ボックス & スイッチ */
+#search-container { position: absolute; top: 10px; width: 90%; left: 5%; z-index: 10; transition: transform 0.3s; }
+.search-bar { background: white; border-radius: 25px; display: flex; padding: 12px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+.search-bar input { border: none; width: 100%; outline: none; font-size: 16px; }
 
 .route-options {
-    background: white;
-    margin: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    margin-top: 10px;
     padding: 8px 15px;
     border-radius: 20px;
     display: flex;
@@ -56,10 +17,42 @@ body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; height: 10
     gap: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
-.switch { position: relative; width: 40px; height: 20px; }
+
+/* スイッチのCSS */
+.switch { position: relative; width: 44px; height: 22px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
-.slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 22px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
 input:checked + .slider { background-color: #007aff; }
-input:checked + .slider:before { transform: translateX(20px); }
-#route-type-label { font-size: 13px; font-weight: bold; color: #444; }
+input:checked + .slider:before { transform: translateX(22px); }
+#route-type-label { font-size: 13px; font-weight: bold; color: #333; }
+
+/* 検索候補 */
+#suggestions-container { background: white; margin-top: 5px; border-radius: 15px; overflow: hidden; }
+#suggestions { list-style: none; max-height: 200px; overflow-y: auto; }
+#suggestions li { padding: 12px 20px; border-bottom: 1px solid #eee; cursor: pointer; }
+
+/* インフォパネル */
+#info-panel { position: absolute; bottom: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; z-index: 20; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); }
+.panel-header { height: 30px; display: flex; justify-content: center; align-items: center; position: relative; }
+#drag-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; }
+#close-panel { position: absolute; right: 15px; background: none; border: none; font-size: 24px; color: #999; }
+.panel-content { padding: 0 20px 30px; }
+
+/* UI要素 */
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+.config-item label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
+.config-item input, .config-item select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
+.primary-btn { width: 100%; padding: 15px; background: #007aff; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; }
+.danger-btn { padding: 10px 20px; background: #ff3b30; color: white; border: none; border-radius: 8px; }
+
+/* ナビバナー */
+#nav-banner { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 12px; border-radius: 12px; display: flex; gap: 15px; z-index: 30; }
+.banner-divider { width: 1px; background: rgba(255,255,255,0.3); }
+.value { font-size: 18px; font-weight: bold; display: block; }
+.highlight { color: #ffeb3b; }
+
+.side-controls { position: absolute; right: 15px; bottom: 120px; display: flex; flex-direction: column; gap: 10px; }
+.side-controls button { width: 45px; height: 45px; border-radius: 50%; border: none; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; }
+
+.hidden { display: none !important; }

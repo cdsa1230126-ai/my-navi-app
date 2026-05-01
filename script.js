@@ -2,7 +2,7 @@
 let savedToken = localStorage.getItem('mapbox_user_token');
 let savedYahooId = localStorage.getItem('yahoo_app_id');
 
-if (savedToken === 'YOUR_MAPBOX_TOKEN' || !savedToken || !savedYahooId) {
+if (!savedToken || !savedYahooId || savedToken === 'YOUR_MAPBOX_TOKEN') {
     document.getElementById('api-config-modal').classList.remove('hidden');
 } else {
     startApp(savedToken, savedYahooId);
@@ -18,15 +18,15 @@ document.getElementById('save-api-keys').onclick = () => {
     }
 };
 
-// --- 2. アプリ本体 ---
+// --- 2. メインロジック ---
 function startApp(token, yid) {
     mapboxgl.accessToken = token;
-    
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
         center: [139.767, 35.681],
-        zoom: 14
+        zoom: 14,
+        pitch: 0
     });
 
     let currentLocation = null;
@@ -34,10 +34,10 @@ function startApp(token, yid) {
     let destMarker = null;
     let restMarkers = [];
     let currentRouteData = null;
-    let isFirstLocate = true; 
     let finalDestination = null;
+    let isFirstLocate = true;
 
-    // A. マップ初期化
+    // A. 初期化とGPS
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
@@ -62,13 +62,15 @@ function startApp(token, yid) {
         }, err => console.error(err), { enableHighAccuracy: true });
     });
 
-    // B. 高速/下道 切り替えイベント
+    // B. 高速/下道 切り替え
     document.getElementById('use-highways').onchange = function() {
         document.getElementById('route-type-label').textContent = this.checked ? "高速道路優先" : "一般道優先";
-        if (finalDestination) drawRoute(finalDestination.name, finalDestination.coords, token);
+        if (finalDestination) {
+            drawRoute(finalDestination.name, finalDestination.coords, token);
+        }
     };
 
-    // C. 検索機能 (Yahoo!)
+    // C. Yahoo! 検索
     const searchBox = document.getElementById('search-box');
     searchBox.oninput = (e) => {
         const q = e.target.value.trim();
@@ -97,7 +99,7 @@ function startApp(token, yid) {
         });
     };
 
-    // D. ルート計算 (高速・下道対応)
+    // D. ルート描画 (経由地対応)
     async function drawRoute(name, destCoords, tk, waypoints = []) {
         if (!currentLocation) return;
         
@@ -108,9 +110,7 @@ function startApp(token, yid) {
         waypoints.forEach(wp => { coordsChain += `${wp[0]},${wp[1]};`; });
         coordsChain += `${destCoords[0]},${destCoords[1]}`;
 
-        const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsChain}?geometries=geojson&overview=full&language=ja${excludeParam}&access_token=${tk}`;
-        
-        const res = await fetch(url);
+        const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsChain}?geometries=geojson&overview=full&language=ja${excludeParam}&access_token=${tk}`);
         const data = await res.json();
         if (!data.routes || data.routes.length === 0) return;
         
@@ -122,12 +122,12 @@ function startApp(token, yid) {
 
         if (destMarker) destMarker.remove();
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
-        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: 100 });
         
+        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: 100 });
         updatePanelUI(name);
     }
 
-    // E. 休憩地点の動的検索 (SA/PA or コンビニ)
+    // E. 休憩地点検索 (高速ならSA/PA、下道なら道沿いコンビニ)
     async function planWithRestAreas(yid) {
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
@@ -135,19 +135,23 @@ function startApp(token, yid) {
         if (count === 0) return [];
 
         const isHighways = document.getElementById('use-highways').checked;
-        const searchQuery = isHighways ? "SA PA コンビニ" : "コンビニ";
+        const searchQuery = isHighways ? "SA PA" : "コンビニ"; // 高速時はSA/PAを狙い撃ち
         const path = currentRouteData.geometry.coordinates;
         const foundWaypoints = [];
 
         for (let i = 1; i <= count; i++) {
-            const pt = path[Math.floor((path.length / (count + 1)) * i)];
+            const splitIdx = Math.floor((path.length / (count + 1)) * i);
+            const searchPt = path[splitIdx];
+
             const res = await new Promise(resolve => {
-                const cb = `cb_${Date.now()}_${i}`;
+                const cb = `rest_cb_${i}_${Date.now()}`;
                 window[cb] = (d) => resolve(d.Feature ? d.Feature[0].Geometry.Coordinates.split(',') : null);
                 const s = document.createElement('script');
-                s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&lat=${pt[1]}&lon=${pt[0]}&dist=0.5&query=${encodeURIComponent(searchQuery)}&output=json&results=1&callback=${cb}`;
+                // 検索距離を300m(0.3)に絞って道沿いを徹底
+                s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&lat=${searchPt[1]}&lon=${searchPt[0]}&dist=0.3&query=${encodeURIComponent(searchQuery)}&output=json&results=1&callback=${cb}`;
                 document.body.appendChild(s);
             });
+
             if (res) {
                 const pos = [parseFloat(res[0]), parseFloat(res[1])];
                 foundWaypoints.push(pos);
@@ -158,12 +162,12 @@ function startApp(token, yid) {
         return foundWaypoints;
     }
 
-    // F. UI更新ロジック
+    // F. UI更新 & 到着逆算
     function updatePanelUI(name) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
-        document.getElementById('route-distance').textContent = `${(currentRouteData.distance/1000).toFixed(1)}km`;
-        document.getElementById('route-duration').textContent = `${Math.round(currentRouteData.duration/60)}分`;
+        document.getElementById('route-distance').textContent = `${(currentRouteData.distance / 1000).toFixed(1)}km`;
+        document.getElementById('route-duration').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
 
         const calc = () => {
             const arrT = document.getElementById('target-arrival-time').value;
@@ -179,8 +183,9 @@ function startApp(token, yid) {
         calc();
     }
 
-    // G. ボタンアクション
+    // G. 案内開始・終了
     document.getElementById('start-nav').onclick = async () => {
+        if (!currentRouteData) return;
         const wps = await planWithRestAreas(yid);
         await drawRoute(finalDestination.name, finalDestination.coords, token, wps);
         
@@ -190,10 +195,12 @@ function startApp(token, yid) {
         
         const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
         document.getElementById('banner-arrival').textContent = `${arr.getHours()}:${String(arr.getMinutes()).padStart(2,'0')}`;
-        map.flyTo({ center: currentLocation, zoom: 17, pitch: 60 });
+        
+        map.flyTo({ center: currentLocation, zoom: 17, pitch: 60, essential: true });
     };
 
     document.getElementById('stop-nav').onclick = () => location.reload();
+    document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
     document.getElementById('recenter-btn').onclick = () => map.flyTo({ center: currentLocation, zoom: 16 });
     document.getElementById('view-toggle-btn').onclick = function() {
         const is3D = map.getPitch() > 0;
