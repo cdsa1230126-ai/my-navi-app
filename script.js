@@ -23,7 +23,8 @@ function startApp(token, yid) {
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
         center: [139.767, 35.681],
-        zoom: 14
+        zoom: 14,
+        pitch: 0
     });
 
     let currentLocation = null, currentMarker = null, destMarker = null, restMarkers = [];
@@ -38,7 +39,7 @@ function startApp(token, yid) {
         }, null, { enableHighAccuracy: true });
     });
 
-    // 2D/3D 切り替え (修正版)
+    // 2D/3D 切り替え機能
     document.getElementById('view-toggle-btn').onclick = function() {
         const is3D = map.getPitch() > 0;
         map.easeTo({ pitch: is3D ? 0 : 60, duration: 500 });
@@ -143,6 +144,7 @@ function startApp(token, yid) {
             document.getElementById('calc-time').textContent = `${String(dep.getHours()).padStart(2,'0')}:${String(dep.getMinutes()).padStart(2,'0')}`;
             document.getElementById('departure-card').classList.remove('hidden');
         };
+        // 設定が変更されたら逆算を更新
         document.querySelectorAll('.config-grid select, .config-grid input').forEach(el => el.onchange = calc);
         calc();
     }
@@ -153,6 +155,8 @@ function startApp(token, yid) {
         document.getElementById('pre-nav-content').classList.add('hidden');
         document.getElementById('nav-active-content').classList.remove('hidden');
         document.getElementById('nav-banner').classList.remove('hidden');
+        
+        // 案内開始時に自動で3D視点へ
         map.flyTo({ center: currentLocation, zoom: 17, pitch: 60 });
         document.getElementById('view-toggle-btn').innerHTML = '2D';
     };

@@ -44,10 +44,10 @@ input:checked + .slider:before { transform: translateX(22px); }
 .config-item label { font-size: 11px; color: #8e8e93; font-weight: bold; display: block; margin-bottom: 5px; }
 .config-item select, .config-item input {
     width: 100%; padding: 12px; border: 1px solid #e5e5ea; border-radius: 12px;
-    background: #f9f9fb; font-size: 15px; font-weight: 500; outline: none;
+    background: #f9f9fb; font-size: 15px; font-weight: 500; outline: none; appearance: none;
 }
 
-/* 🆕 モダンなボタンデザイン */
+/* 洗練された「案内開始」ボタン */
 .btn-primary {
     flex: 2; background: var(--movi-blue); color: white; border: none; padding: 16px;
     border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer;
@@ -58,10 +58,11 @@ input:checked + .slider:before { transform: translateX(22px); }
 .btn-secondary { flex: 1; background: #f2f2f7; color: #1c1c1e; border: none; border-radius: 16px; cursor: pointer; font-weight: bold; }
 .panel-footer { display: flex; gap: 12px; }
 
-/* 既存ボタン・バナー */
+/* 地図操作ボタン（2D/3Dなど） */
 .map-ctrl-btn { position: absolute; right: 16px; width: 50px; height: 50px; border-radius: 25px; background: white; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); font-weight: bold; z-index: 4000; }
 #recenter-btn { bottom: 120px; }
 #view-toggle-btn { bottom: 180px; }
 
+/* 案内中バナー */
 #nav-banner { position: absolute; top: 120px; left: 15px; z-index: 5000; background: rgba(255, 255, 255, 0.9); padding: 12px 20px; border-radius: 18px; display: flex; gap: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
 .hidden { display: none !important; }
