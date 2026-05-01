@@ -1,8 +1,7 @@
-// --- 1. APIキー管理システム ---
+// --- 1. APIキー管理システム (変更なし) ---
 let savedToken = localStorage.getItem('mapbox_user_token');
 let savedYahooId = localStorage.getItem('yahoo_app_id');
 
-// キーがない、またはダミーの場合はモーダル表示
 if (savedToken === 'YOUR_MAPBOX_TOKEN' || !savedToken || !savedYahooId) {
     document.getElementById('api-config-modal').classList.remove('hidden');
 } else {
@@ -28,7 +27,7 @@ function startApp(token, yid) {
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
-        center: [139.767, 35.681], // 初期値（東京駅）
+        center: [139.767, 35.681],
         zoom: 14,
         pitch: 0
     });
@@ -39,10 +38,9 @@ function startApp(token, yid) {
     let restMarkers = [];
     let currentRouteData = null;
     let isFirstLocate = true; 
+    let finalDestination = null; // 最終目的地を保持
 
-    // 地図が読み込まれた際の処理
     map.on('load', () => {
-        // 渋滞レイヤーの追加
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
             'id': 'traffic', 'type': 'line', 'source': 'mapbox-traffic', 'source-layer': 'traffic',
@@ -52,45 +50,31 @@ function startApp(token, yid) {
             }
         });
 
-        // 位置情報の監視と初回ジャンプ
         navigator.geolocation.watchPosition(p => {
             currentLocation = [p.coords.longitude, p.coords.latitude];
-            
-            // 現在地マーカー
             if (!currentMarker) {
                 currentMarker = new mapboxgl.Marker({ color: '#007aff' }).setLngLat(currentLocation).addTo(map);
             } else {
                 currentMarker.setLngLat(currentLocation);
             }
 
-            // 初回のみスムーズに現在地へ移動
             if (isFirstLocate) {
-                map.easeTo({
-                    center: currentLocation,
-                    zoom: 16,
-                    duration: 2000,
-                    essential: true
-                });
+                map.easeTo({ center: currentLocation, zoom: 16, duration: 2000, essential: true });
                 isFirstLocate = false;
             }
-        }, err => console.error("GPS取得エラー:", err), { enableHighAccuracy: true });
+        }, err => console.error("GPSエラー:", err), { enableHighAccuracy: true });
     });
 
-    // --- UI操作系 ---
-
-    // 📍現在地に戻るボタン
     document.getElementById('recenter-btn').onclick = () => { 
         if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 }); 
     };
 
-    // 2D/3D切り替え
     document.getElementById('view-toggle-btn').onclick = function() {
         const is3D = map.getPitch() > 0;
         map.easeTo({ pitch: is3D ? 0 : 60, duration: 500 });
         this.innerHTML = is3D ? '2D' : '3D';
     };
 
-    // Yahoo! 地名検索
     const searchBox = document.getElementById('search-box');
     searchBox.oninput = (e) => {
         const q = e.target.value.trim();
@@ -112,17 +96,28 @@ function startApp(token, yid) {
             li.onclick = () => {
                 document.getElementById('suggestions-container').classList.add('hidden');
                 const coords = f.Geometry.Coordinates.split(',');
-                drawRoute(f.Name, [parseFloat(coords[0]), parseFloat(coords[1])], token, yid);
+                finalDestination = { name: f.Name, coords: [parseFloat(coords[0]), parseFloat(coords[1])] };
+                drawRoute(finalDestination.name, finalDestination.coords, token);
             };
             list.appendChild(li);
         });
     };
 
-    // ルート描画
-    async function drawRoute(name, destCoords, tk, yid) {
+    // ルート描画関数（経由地対応）
+    async function drawRoute(name, destCoords, tk, waypoints = []) {
         if (!currentLocation) return;
-        const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${currentLocation[0]},${currentLocation[1]};${destCoords[0]},${destCoords[1]}?geometries=geojson&overview=full&language=ja&access_token=${tk}`);
+        
+        // 経由地がある場合は、[現在地, ...休憩地点, 目的地] の順に座標を並べる
+        let coordString = `${currentLocation[0]},${currentLocation[1]};`;
+        waypoints.forEach(wp => {
+            coordString += `${wp[0]},${wp[1]};`;
+        });
+        coordString += `${destCoords[0]},${destCoords[1]}`;
+
+        const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordString}?geometries=geojson&overview=full&language=ja&access_token=${tk}`);
         const data = await res.json();
+        if (!data.routes) return;
+        
         currentRouteData = data.routes[0];
 
         if (map.getSource('route')) { map.removeLayer('route'); map.removeSource('route'); }
@@ -132,15 +127,58 @@ function startApp(token, yid) {
         if (destMarker) destMarker.remove();
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
         
-        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { 
-            padding: {top: 50, bottom: 400, left: 50, right: 50} 
-        });
-        
-        updatePanelUI(name, yid);
+        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 400, left: 50, right: 50} });
+        updatePanelUI(name);
     }
 
-    // パネル更新 & 到着逆算ロジック
-    function updatePanelUI(name, yid) {
+    // 休憩地点を探して「ルートを再計算」する
+    async function planWithRestAreas(yid, tk) {
+        restMarkers.forEach(m => m.remove());
+        restMarkers = [];
+        
+        const count = parseInt(document.getElementById('rest-count').value) || 0;
+        if (count === 0) return;
+
+        const originalCoords = currentRouteData.geometry.coordinates;
+        let waypointCoords = [];
+
+        // 各休憩ポイントについてYahooで検索
+        for (let i = 1; i <= count; i++) {
+            const pt = originalCoords[Math.floor((originalCoords.length / (count + 1)) * i)];
+            
+            // Promiseで検索結果を待つようにラップ
+            const findPlace = () => new Promise(resolve => {
+                const cbName = `rest_cb_${i}_${Date.now()}`;
+                window[cbName] = (d) => {
+                    if (d.Feature) {
+                        const sc = d.Feature[0].Geometry.Coordinates.split(',');
+                        const pos = [parseFloat(sc[0]), parseFloat(sc[1])];
+                        resolve(pos);
+                    } else {
+                        resolve(null);
+                    }
+                };
+                const s = document.createElement('script');
+                // distを1kmに絞り、より道路に近い場所を優先
+                s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&lat=${pt[1]}&lon=${pt[0]}&dist=1&query=コンビニ&output=json&results=1&callback=${cbName}`;
+                document.body.appendChild(s);
+            });
+
+            const foundPos = await findPlace();
+            if (foundPos) {
+                waypointCoords.push(foundPos);
+                const m = new mapboxgl.Marker({ color: '#FFD700' }).setLngLat(foundPos).addTo(map);
+                restMarkers.push(m);
+            }
+        }
+
+        // 休憩地点を含めてルートを再描画！
+        if (waypointCoords.length > 0) {
+            drawRoute(finalDestination.name, finalDestination.coords, tk, waypointCoords);
+        }
+    }
+
+    function updatePanelUI(name) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
         document.getElementById('route-distance').textContent = `${(currentRouteData.distance / 1000).toFixed(1)}km`;
@@ -157,47 +195,20 @@ function startApp(token, yid) {
             document.getElementById('total-rest-info').textContent = `休憩合計: ${rTime * rCnt}分 (${rCnt}回)`;
             document.getElementById('departure-card').classList.remove('hidden');
         };
-        // 入力変更時にリアルタイム計算
         document.querySelectorAll('.config-grid input').forEach(el => el.oninput = calc);
         calc();
     }
 
-    // 休憩地点の検索とピン立て
-    async function showRestAreas(yid) {
-        restMarkers.forEach(m => m.remove());
-        restMarkers = [];
-        const count = parseInt(document.getElementById('rest-count').value) || 0;
-        if (count === 0) return;
-
-        const coords = currentRouteData.geometry.coordinates;
-        for (let i = 1; i <= count; i++) {
-            const pt = coords[Math.floor((coords.length / (count + 1)) * i)];
-            const cbName = `rest_cb_${i}_${Date.now()}`;
-            
-            window[cbName] = (d) => {
-                if (d.Feature) {
-                    const sc = d.Feature[0].Geometry.Coordinates.split(',');
-                    const m = new mapboxgl.Marker({ color: '#FFD700' }).setLngLat([parseFloat(sc[0]), parseFloat(sc[1])]).addTo(map);
-                    restMarkers.push(m);
-                }
-            };
-
-            const s = document.createElement('script');
-            s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&lat=${pt[1]}&lon=${pt[0]}&dist=2&query=コンビニ&output=json&results=1&callback=${cbName}`;
-            document.body.appendChild(s);
-        }
-    }
-
-    // 案内開始
-    document.getElementById('start-nav').onclick = () => {
+    document.getElementById('start-nav').onclick = async () => {
         if (!currentRouteData) return;
-        showRestAreas(yid);
+        
+        // 案内開始前に休憩地点をルートに組み込む
+        await planWithRestAreas(yid, token);
         
         document.getElementById('pre-nav-content').classList.add('hidden');
         document.getElementById('nav-active-content').classList.remove('hidden');
         document.getElementById('search-container').style.transform = 'translateY(-120px)';
         
-        // バナー更新
         const banner = document.getElementById('nav-banner');
         banner.classList.remove('hidden');
         const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
@@ -208,22 +219,19 @@ function startApp(token, yid) {
         document.getElementById('banner-next-rest').textContent = `${nextRest}分`;
 
         document.getElementById('nav-remaining-time').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
-        
-        // ナビ視点へ移動（少し斜めにする場合は pitch: 60）
         map.flyTo({ center: currentLocation, zoom: 17, pitch: 45, essential: true });
     };
 
-    // 案内終了
     document.getElementById('stop-nav').onclick = () => {
         document.getElementById('nav-banner').classList.add('hidden');
         document.getElementById('search-container').style.transform = 'translateY(0)';
         document.getElementById('pre-nav-content').classList.remove('hidden');
         document.getElementById('nav-active-content').classList.add('hidden');
         restMarkers.forEach(m => m.remove());
-        map.easeTo({ pitch: 0, zoom: 15 });
+        // 目的地だけのルートに戻す
+        drawRoute(finalDestination.name, finalDestination.coords, token);
+        map.easeTo({ pitch: 0 });
     };
 
-    document.getElementById('close-panel').onclick = () => {
-        document.getElementById('info-panel').classList.add('hidden');
-    };
+    document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
 }
