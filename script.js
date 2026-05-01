@@ -1,4 +1,4 @@
-// --- 1. APIキー管理システム (変更なし) ---
+// --- 1. APIキー管理 ---
 let savedToken = localStorage.getItem('mapbox_user_token');
 let savedYahooId = localStorage.getItem('yahoo_app_id');
 
@@ -11,16 +11,14 @@ if (savedToken === 'YOUR_MAPBOX_TOKEN' || !savedToken || !savedYahooId) {
 document.getElementById('save-api-keys').onclick = () => {
     const mb = document.getElementById('mapbox-token-input').value.trim();
     const yh = document.getElementById('yahoo-id-input').value.trim();
-    if (mb && yh && mb !== 'YOUR_MAPBOX_TOKEN') {
+    if (mb && yh) {
         localStorage.setItem('mapbox_user_token', mb);
         localStorage.setItem('yahoo_app_id', yh);
         location.reload();
-    } else {
-        alert("正しいAPIキーを入力してください。");
     }
 };
 
-// --- 2. メインアプリ機能 ---
+// --- 2. アプリ本体 ---
 function startApp(token, yid) {
     mapboxgl.accessToken = token;
     
@@ -28,8 +26,7 @@ function startApp(token, yid) {
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
         center: [139.767, 35.681],
-        zoom: 14,
-        pitch: 0
+        zoom: 14
     });
 
     let currentLocation = null;
@@ -38,8 +35,9 @@ function startApp(token, yid) {
     let restMarkers = [];
     let currentRouteData = null;
     let isFirstLocate = true; 
-    let finalDestination = null; // 最終目的地を保持
+    let finalDestination = null;
 
+    // A. マップ初期化
     map.on('load', () => {
         map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
         map.addLayer({
@@ -57,24 +55,20 @@ function startApp(token, yid) {
             } else {
                 currentMarker.setLngLat(currentLocation);
             }
-
             if (isFirstLocate) {
-                map.easeTo({ center: currentLocation, zoom: 16, duration: 2000, essential: true });
+                map.easeTo({ center: currentLocation, zoom: 16, duration: 2000 });
                 isFirstLocate = false;
             }
-        }, err => console.error("GPSエラー:", err), { enableHighAccuracy: true });
+        }, err => console.error(err), { enableHighAccuracy: true });
     });
 
-    document.getElementById('recenter-btn').onclick = () => { 
-        if (currentLocation) map.flyTo({ center: currentLocation, zoom: 16 }); 
+    // B. 高速/下道 切り替えイベント
+    document.getElementById('use-highways').onchange = function() {
+        document.getElementById('route-type-label').textContent = this.checked ? "高速道路優先" : "一般道優先";
+        if (finalDestination) drawRoute(finalDestination.name, finalDestination.coords, token);
     };
 
-    document.getElementById('view-toggle-btn').onclick = function() {
-        const is3D = map.getPitch() > 0;
-        map.easeTo({ pitch: is3D ? 0 : 60, duration: 500 });
-        this.innerHTML = is3D ? '2D' : '3D';
-    };
-
+    // C. 検索機能 (Yahoo!)
     const searchBox = document.getElementById('search-box');
     searchBox.oninput = (e) => {
         const q = e.target.value.trim();
@@ -103,20 +97,22 @@ function startApp(token, yid) {
         });
     };
 
-    // ルート描画関数（経由地対応）
+    // D. ルート計算 (高速・下道対応)
     async function drawRoute(name, destCoords, tk, waypoints = []) {
         if (!currentLocation) return;
         
-        // 経由地がある場合は、[現在地, ...休憩地点, 目的地] の順に座標を並べる
-        let coordString = `${currentLocation[0]},${currentLocation[1]};`;
-        waypoints.forEach(wp => {
-            coordString += `${wp[0]},${wp[1]};`;
-        });
-        coordString += `${destCoords[0]},${destCoords[1]}`;
+        const useHighways = document.getElementById('use-highways').checked;
+        const excludeParam = useHighways ? "" : "&exclude=motorway";
 
-        const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordString}?geometries=geojson&overview=full&language=ja&access_token=${tk}`);
+        let coordsChain = `${currentLocation[0]},${currentLocation[1]};`;
+        waypoints.forEach(wp => { coordsChain += `${wp[0]},${wp[1]};`; });
+        coordsChain += `${destCoords[0]},${destCoords[1]}`;
+
+        const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsChain}?geometries=geojson&overview=full&language=ja${excludeParam}&access_token=${tk}`;
+        
+        const res = await fetch(url);
         const data = await res.json();
-        if (!data.routes) return;
+        if (!data.routes || data.routes.length === 0) return;
         
         currentRouteData = data.routes[0];
 
@@ -126,63 +122,48 @@ function startApp(token, yid) {
 
         if (destMarker) destMarker.remove();
         destMarker = new mapboxgl.Marker({ color: '#ff3b30' }).setLngLat(destCoords).addTo(map);
+        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: 100 });
         
-        map.fitBounds(new mapboxgl.LngLatBounds().extend(currentLocation).extend(destCoords), { padding: {top: 50, bottom: 400, left: 50, right: 50} });
         updatePanelUI(name);
     }
 
-    // 休憩地点を探して「ルートを再計算」する
-    async function planWithRestAreas(yid, tk) {
+    // E. 休憩地点の動的検索 (SA/PA or コンビニ)
+    async function planWithRestAreas(yid) {
         restMarkers.forEach(m => m.remove());
         restMarkers = [];
-        
         const count = parseInt(document.getElementById('rest-count').value) || 0;
-        if (count === 0) return;
+        if (count === 0) return [];
 
-        const originalCoords = currentRouteData.geometry.coordinates;
-        let waypointCoords = [];
+        const isHighways = document.getElementById('use-highways').checked;
+        const searchQuery = isHighways ? "SA PA コンビニ" : "コンビニ";
+        const path = currentRouteData.geometry.coordinates;
+        const foundWaypoints = [];
 
-        // 各休憩ポイントについてYahooで検索
         for (let i = 1; i <= count; i++) {
-            const pt = originalCoords[Math.floor((originalCoords.length / (count + 1)) * i)];
-            
-            // Promiseで検索結果を待つようにラップ
-            const findPlace = () => new Promise(resolve => {
-                const cbName = `rest_cb_${i}_${Date.now()}`;
-                window[cbName] = (d) => {
-                    if (d.Feature) {
-                        const sc = d.Feature[0].Geometry.Coordinates.split(',');
-                        const pos = [parseFloat(sc[0]), parseFloat(sc[1])];
-                        resolve(pos);
-                    } else {
-                        resolve(null);
-                    }
-                };
+            const pt = path[Math.floor((path.length / (count + 1)) * i)];
+            const res = await new Promise(resolve => {
+                const cb = `cb_${Date.now()}_${i}`;
+                window[cb] = (d) => resolve(d.Feature ? d.Feature[0].Geometry.Coordinates.split(',') : null);
                 const s = document.createElement('script');
-                // distを1kmに絞り、より道路に近い場所を優先
-                s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&lat=${pt[1]}&lon=${pt[0]}&dist=1&query=コンビニ&output=json&results=1&callback=${cbName}`;
+                s.src = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=${yid}&lat=${pt[1]}&lon=${pt[0]}&dist=0.5&query=${encodeURIComponent(searchQuery)}&output=json&results=1&callback=${cb}`;
                 document.body.appendChild(s);
             });
-
-            const foundPos = await findPlace();
-            if (foundPos) {
-                waypointCoords.push(foundPos);
-                const m = new mapboxgl.Marker({ color: '#FFD700' }).setLngLat(foundPos).addTo(map);
+            if (res) {
+                const pos = [parseFloat(res[0]), parseFloat(res[1])];
+                foundWaypoints.push(pos);
+                const m = new mapboxgl.Marker({ color: '#FFD700' }).setLngLat(pos).addTo(map);
                 restMarkers.push(m);
             }
         }
-
-        // 休憩地点を含めてルートを再描画！
-        if (waypointCoords.length > 0) {
-            drawRoute(finalDestination.name, finalDestination.coords, tk, waypointCoords);
-        }
+        return foundWaypoints;
     }
 
+    // F. UI更新ロジック
     function updatePanelUI(name) {
         document.getElementById('info-panel').classList.remove('hidden');
         document.getElementById('destination-name').textContent = name;
-        document.getElementById('route-distance').textContent = `${(currentRouteData.distance / 1000).toFixed(1)}km`;
-        document.getElementById('route-duration').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
+        document.getElementById('route-distance').textContent = `${(currentRouteData.distance/1000).toFixed(1)}km`;
+        document.getElementById('route-duration').textContent = `${Math.round(currentRouteData.duration/60)}分`;
 
         const calc = () => {
             const arrT = document.getElementById('target-arrival-time').value;
@@ -192,46 +173,31 @@ function startApp(token, yid) {
             const t = new Date(); const [h, m] = arrT.split(':'); t.setHours(h, m, 0);
             const dep = new Date(t.getTime() - (currentRouteData.duration * 1000) - (rTime * rCnt * 60 * 1000));
             document.getElementById('calc-time').textContent = `${String(dep.getHours()).padStart(2,'0')}:${String(dep.getMinutes()).padStart(2,'0')}`;
-            document.getElementById('total-rest-info').textContent = `休憩合計: ${rTime * rCnt}分 (${rCnt}回)`;
             document.getElementById('departure-card').classList.remove('hidden');
         };
-        document.querySelectorAll('.config-grid input').forEach(el => el.oninput = calc);
+        document.querySelectorAll('.config-grid input, select').forEach(el => el.oninput = calc);
         calc();
     }
 
+    // G. ボタンアクション
     document.getElementById('start-nav').onclick = async () => {
-        if (!currentRouteData) return;
-        
-        // 案内開始前に休憩地点をルートに組み込む
-        await planWithRestAreas(yid, token);
+        const wps = await planWithRestAreas(yid);
+        await drawRoute(finalDestination.name, finalDestination.coords, token, wps);
         
         document.getElementById('pre-nav-content').classList.add('hidden');
         document.getElementById('nav-active-content').classList.remove('hidden');
-        document.getElementById('search-container').style.transform = 'translateY(-120px)';
+        document.getElementById('nav-banner').classList.remove('hidden');
         
-        const banner = document.getElementById('nav-banner');
-        banner.classList.remove('hidden');
         const arr = new Date(Date.now() + (currentRouteData.duration * 1000));
         document.getElementById('banner-arrival').textContent = `${arr.getHours()}:${String(arr.getMinutes()).padStart(2,'0')}`;
-        
-        const rCnt = parseInt(document.getElementById('rest-count').value) || 1;
-        const nextRest = Math.round((currentRouteData.duration / 60) / (rCnt + 1));
-        document.getElementById('banner-next-rest').textContent = `${nextRest}分`;
-
-        document.getElementById('nav-remaining-time').textContent = `${Math.round(currentRouteData.duration / 60)}分`;
-        map.flyTo({ center: currentLocation, zoom: 17, pitch: 45, essential: true });
+        map.flyTo({ center: currentLocation, zoom: 17, pitch: 60 });
     };
 
-    document.getElementById('stop-nav').onclick = () => {
-        document.getElementById('nav-banner').classList.add('hidden');
-        document.getElementById('search-container').style.transform = 'translateY(0)';
-        document.getElementById('pre-nav-content').classList.remove('hidden');
-        document.getElementById('nav-active-content').classList.add('hidden');
-        restMarkers.forEach(m => m.remove());
-        // 目的地だけのルートに戻す
-        drawRoute(finalDestination.name, finalDestination.coords, token);
-        map.easeTo({ pitch: 0 });
+    document.getElementById('stop-nav').onclick = () => location.reload();
+    document.getElementById('recenter-btn').onclick = () => map.flyTo({ center: currentLocation, zoom: 16 });
+    document.getElementById('view-toggle-btn').onclick = function() {
+        const is3D = map.getPitch() > 0;
+        map.easeTo({ pitch: is3D ? 0 : 60 });
+        this.innerHTML = is3D ? '3D' : '2D';
     };
-
-    document.getElementById('close-panel').onclick = () => document.getElementById('info-panel').classList.add('hidden');
 }
